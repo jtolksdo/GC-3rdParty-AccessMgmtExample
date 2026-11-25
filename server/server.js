@@ -15,6 +15,7 @@ import * as audit from './audit.js';
 import { getWeather } from './weather.js';
 import { verifyGenesysToken, genesysConfigured, HttpError } from './genesys.js';
 import { findToolUser } from './identity.js';
+import { cleanCustomerName } from './customer.js';
 
 perms.ensureUsersFile();
 
@@ -226,8 +227,10 @@ route('GET', /^\/api\/weather\/([a-z-]+)$/, async (req, res, [stationId]) => {
   return { fetchedAt: weather.fetchedAt, source: weather.source, station: weather.stations[stationId] };
 });
 
-// Which station did the customer pick? Read from the conversation's participant
-// data with the agent's own Genesys token (kept server-side in the session).
+// Which station did the customer pick, and what last name did they give the bot?
+// Read from the conversation's participant data with the agent's own Genesys
+// token (kept server-side in the session), so Genesys Cloud decides whether this
+// agent may see the conversation at all. The name is passed through, never logged.
 route('GET', /^\/api\/genesys\/conversations\/([^/]+)\/station$/, async (req, res, [conversationId]) => {
   const ctx = authenticate(req);
   if (ctx.session.source !== 'genesys') throw new HttpError(400, 'Only available for Genesys Cloud sign-ins');
@@ -242,7 +245,11 @@ route('GET', /^\/api\/genesys\/conversations\/([^/]+)\/station$/, async (req, re
   const conversation = await r.json();
   const attributes = Object.assign({}, ...(conversation.participants || []).map((p) => p.attributes || {}));
   const raw = String(attributes['wx84.station'] || attributes.location || '').toLowerCase().trim();
-  return { stationId: STATION_IDS.includes(raw) ? raw : null, raw: raw || null };
+  return {
+    stationId: STATION_IDS.includes(raw) ? raw : null,
+    raw: raw || null,
+    customer: { lastName: cleanCustomerName(attributes['wx84.lastName']) },
+  };
 });
 
 route('GET', /^\/api\/admin\/users$/, (req) => {

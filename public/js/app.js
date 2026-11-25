@@ -18,6 +18,7 @@ const state = {
   embedded: false,
   conversationId: null,
   requestedStation: null,
+  customerName: null, // from the chat bot, shown only - never stored
   timers: [],
   cautionTimer: null,
 };
@@ -394,9 +395,10 @@ async function checkConversation() {
   $('#incoming-text').innerHTML = 'IDENTIFYING CUSTOMER REQUEST...';
   setVerdict(null, 'CHECKING');
   try {
-    const { stationId, raw } = await api(`/api/genesys/conversations/${state.conversationId}/station`);
+    const { stationId, raw, customer } = await api(`/api/genesys/conversations/${state.conversationId}/station`);
+    state.customerName = customer?.lastName || null;
     if (!stationId) {
-      $('#incoming-text').innerHTML = `NO STATION SPECIFIED BY CUSTOMER<small>${raw ? `unknown value: ${escapeHtml(raw)}` : 'participant data "location" is empty'}</small>`;
+      $('#incoming-text').innerHTML = `NO STATION SPECIFIED BY ${customerLabel()}<small>${raw ? `unknown value: ${escapeHtml(raw)}` : 'participant data "location" is empty'}</small>`;
       setVerdict('amber', 'NO DATA');
       return;
     }
@@ -413,7 +415,7 @@ async function checkConversation() {
 // Ask the server - not the UI - whether this operator may see the requested station.
 async function verifyRequestedStation() {
   const station = state.stations.find((s) => s.id === state.requestedStation);
-  const text = `CUSTOMER REQUESTS ${station.name.toUpperCase()} (${station.icao})`;
+  const text = `${customerLabel()} REQUESTS ${station.name.toUpperCase()} (${station.icao})`;
   try {
     await api(`/api/weather/${station.id}`);
     $('#incoming-text').innerHTML = `${text}<small>clearance confirmed for operator ${escapeHtml(state.me.username)}</small>`;
@@ -424,6 +426,12 @@ async function verifyRequestedStation() {
     setVerdict('red', 'DENIED');
     caution(`ACCESS DENIED FOR REQUESTED STATION ${station.name.toUpperCase()}`);
   }
+}
+
+// "CUSTOMER MUELLER" when the bot collected a name. The name is customer input:
+// always escaped, because it ends up in innerHTML.
+function customerLabel() {
+  return state.customerName ? `CUSTOMER ${escapeHtml(state.customerName.toUpperCase())}` : 'CUSTOMER';
 }
 
 function setVerdict(color, text) {

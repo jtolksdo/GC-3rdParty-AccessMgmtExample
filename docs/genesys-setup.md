@@ -10,7 +10,8 @@ This guide connects the local WX-84 console to a Genesys Cloud org. The provisio
 | Group | `WX-84 Agents` | Only these users see the widget |
 | 4 queues | `WX-84 Menlo Park`, `WX-84 Indianapolis`, `WX-84 Melbourne`, `WX-84 Supervisor` | One agent each; the admin works the Supervisor queue |
 | WebRTC phone per agent (optional) | `<agent name> (WebRTC)` | Browser softphone, set as the agent's default station, so the desktop does not ask for a phone. Skipped if the org has no cloud-media telephony site, or with `--no-phones`. Web messaging works without it. |
-| Inbound message flow | `WX-84 Station Router` | Routes by the custom attribute `location` |
+| Digital bot flow | `WX-84 Name Collector` | Asks the customer for their last name (one slot, `builtin:any`, no Virtual Agent). Each bot session is billed as "Genesys Cloud for Bot Flow - Digital" (tokens) |
+| Inbound message flow | `WX-84 Station Router` | Calls the name bot, attaches the answer as `wx84.lastName`, then routes by the custom attribute `location` |
 | Messenger configuration + deployment | `WX-84 Flight Weather Desk` | The chat on the customer page |
 | OAuth client (Code/PKCE) | `WX-84 Agent Console (PKCE)` | Agents sign in to WX-84 with their Genesys identity |
 | Interaction Widget | `WX-84 Weather Command Unit` | Shows the console inside web-messaging interactions on the WX-84 queues |
@@ -94,7 +95,7 @@ The script writes `config/config.json` (IDs only, no secrets). It also links the
 
 1. Open `http://localhost:3000/customer/` and click **Chat with Menlo Park**. Write "hello".
 2. The Menlo agent accepts the chat. In Agent Workspace the widget sits behind the **cube icon** in the toolbar above the right-hand panel (or under **Tools**). Open **WX-84 Weather Command Unit** and press **Engage link**. A popup flashes and closes.
-3. The console shows the operator `menlo / WX-84 Menlo Park`, identity source *Genesys Cloud*, and **CUSTOMER REQUESTS MENLO PARK (KPAO) - CLEARED**.
+3. The console shows the operator `menlo / WX-84 Menlo Park`, identity source *Genesys Cloud*, and **CUSTOMER MÜLLER REQUESTS MENLO PARK (KPAO) - CLEARED** (with the name you gave the bot).
 4. Transfer the chat to the Melbourne queue. The Melbourne agent sees Melbourne. Transfer a Melbourne chat to Menlo and the Menlo console shows **ACCESS DENIED** for the requested station.
 5. On your Mac, sign in locally as `admin` (`http://localhost:3000`), open the **maintenance panel**, revoke a station, lift the guard, commit. The agent's console locks that station within ~4 seconds.
 

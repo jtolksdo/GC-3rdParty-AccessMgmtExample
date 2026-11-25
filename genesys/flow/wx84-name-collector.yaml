@@ -1,0 +1,110 @@
+# WX-84 Name Collector - Genesys Cloud digital bot flow (Archy YAML)
+#
+# Asks the customer for their last name in the chat and returns it as the
+# output "LastName". The station router flow calls this bot first and attaches
+# the answer to the conversation as participant data "wx84.lastName".
+#
+# The name is a claim typed by the customer, not a verified identity.
+# Virtual Agent (LLM) is off: one plain question, one slot of type builtin:any.
+#
+# Deployed by genesys/setup.js through the Architect jobs API before the
+# station router, which references it by name.
+digitalBot:
+  name: WX-84 Name Collector
+  description: Asks WX-84 customers for their last name.
+  division: Home
+  startUpRef: "/digitalBot/bots/bot[Ask last name_10]"
+  defaultLanguage: en-us
+  supportedLanguages:
+    en-us:
+      defaultLanguageSkill:
+        noValue: true
+  variables:
+    - stringVariable:
+        name: Flow.LastName
+        initialValue:
+          noValue: true
+        isInput: false
+        isOutput: true
+  settingsErrorHandling:
+    errorHandling:
+      exit:
+        none: true
+    enableAgentEscalation:
+      lit: false
+    errorEventHandover:
+      exp: "MakeCommunication(ToCommunication(\"Sorry, something went wrong. Connecting you to a meteorologist.\"))"
+    recognitionFailureEventHandover:
+      exp: "MakeCommunication(ToCommunication(\"Sorry, I did not get that. Connecting you to a meteorologist.\"))"
+    recognitionFailureEventHandling:
+      exit:
+        none: true
+  settingsBotFlow:
+    virtualAgentEnabled: false
+  settingsUserInput:
+    noMatchesMax:
+      lit: 2
+    noInputsMax:
+      lit: 2
+    noInputsTimeout:
+      lit:
+        minutes: 2
+    endOfSessionMessage:
+      exp: "MakeCommunication(ToCommunication(\"I have not heard from you in a while, so I am closing this chat. Please come back any time.\"))"
+    confirmationRejectionsMax:
+      lit: 2
+    collectionLowConfidenceThreshold:
+      lit: 20
+    collectionHighConfidenceThreshold:
+      lit: 70
+    confirmationLowConfidenceThreshold:
+      lit: 40
+    noMatchApology:
+      exp: "MakeCommunication(ToCommunication(\"Sorry.\"))"
+    noInputApology:
+      exp: "MakeCommunication(ToCommunication(\"Sorry, I didn't receive anything.\"))"
+    noToConfirmationApology:
+      exp: "MakeCommunication(ToCommunication(\"My mistake.\"))"
+    confirmationNoMatchApology:
+      exp: "MakeCommunication(ToCommunication(\"Sorry, please answer Yes or No.\"))"
+    confirmationNoInputApology:
+      exp: "MakeCommunication(ToCommunication(\"Sorry, I didn't receive anything. Please answer Yes or No.\"))"
+  settingsKnowledge:
+    none: true
+  bots:
+    - bot:
+        name: Ask last name
+        refId: Ask last name_10
+        actions:
+          - askForSlot:
+              name: Ask for last name
+              slot:
+                name: lastName
+              question:
+                exp: "MakeCommunication(ToCommunication(\"Welcome to the WX-84 Flight Weather Desk. May I have your last name, please?\"))"
+              noMatch:
+                exp: "MakeCommunication(ToCommunication(\"Sorry, what is your last name?\"))"
+              outputs:
+                maxNoInputs:
+                  enabled: false
+                maxNoMatches:
+                  enabled: false
+          - updateData:
+              name: Return last name
+              statements:
+                - string:
+                    variable: Flow.LastName
+                    value:
+                      exp: Slot.lastName
+          - exitBotFlow:
+              name: Back to the station router
+  settingsNaturalLanguageUnderstanding:
+    nluDomainVersion:
+      intents: []
+      entities:
+        - name: lastName
+          type: builtin:any
+      entityTypes: []
+      language: en-us
+      languageVersions: {}
+    mutedUtterances: []

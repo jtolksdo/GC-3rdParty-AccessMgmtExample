@@ -10,6 +10,7 @@ flowchart LR
   subgraph GC["Genesys Cloud (usw2)"]
     MSG["Messenger<br/>deployment"]
     FLOW["Inbound message flow<br/>WX-84 Station Router"]
+    BOT["Digital bot flow<br/>WX-84 Name Collector"]
     Q["Queues<br/>Menlo Park · Indianapolis ·<br/>Melbourne · Supervisor"]
     AD["Agent desktop<br/>+ Interaction Widget"]
     LOGIN["login.usw2.pure.cloud<br/>OAuth"]
@@ -24,6 +25,7 @@ flowchart LR
   TUN["HTTPS tunnel<br/>(cloudflared / ngrok)"]
 
   CP -- "custom attribute: location" --> MSG --> FLOW --> Q --> AD
+  FLOW -- "asks last name" --> BOT
   AD -- "iframe" --> TUN --> SRV
   AD -. "popup: PKCE sign-in" .-> LOGIN
   SRV -- "verify token: /users/me" --> API
@@ -84,6 +86,8 @@ sequenceDiagram
 | **Local key only from loopback** | The tunnel makes the console reachable from the internet. Without this check, anyone with the URL could press "admin". | A config flag alone: easy to forget. |
 | **Server listens on 127.0.0.1** | Not reachable from the LAN. Only the tunnel (a local process) forwards traffic. | `0.0.0.0`. |
 | **`frame-ancestors` limited to Genesys domains** | Clickjacking protection: nobody else can embed the console. | No CSP. |
+| **Customer data read with the agent's token** | Genesys Cloud's own permissions decide whether the agent may see the conversation, and with it the customer's last name. Two access models stack: Genesys for customer data, WX-84 for partner data. | A service account: sees every conversation, so the partner app would have to re-implement Genesys' rules. |
+| **Customer name: shown, never stored or logged**, and escaped | It is personal data typed by the customer: an unverified claim and untrusted input. The rule for what is shown lives in `server/customer.js`. | Logging it in the flight recorder: personal data in an audit file. |
 | **Widget limited to a Genesys group + the WX-84 queues** | Defense in depth: Genesys decides who even *sees* the widget, and WX-84 decides what they see inside it. | Visible to everyone. |
 | **Open-Meteo + simulation fallback** | No API key in a public repo; a live demo never shows an empty cockpit. | Keyed weather APIs. |
 
@@ -99,7 +103,7 @@ sequenceDiagram
 | `GET /api/me` | session | Who am I, which stations, permissions version |
 | `GET /api/weather` | session | Readings for cleared stations only |
 | `GET /api/weather/:station` | session | One station, `403` if not cleared (logged) |
-| `GET /api/genesys/conversations/:id/station` | Genesys session | Station the customer picked (participant data `location`) |
+| `GET /api/genesys/conversations/:id/station` | Genesys session | Station the customer picked (participant data `location`) and the last name from the chat bot (`wx84.lastName`, cleaned by `server/customer.js`) |
 | `GET /api/admin/users` | admin | Permission matrix |
 | `PUT /api/admin/users/:username` | admin | Change role / stations / Genesys e-mail |
 | `GET /api/admin/audit` | admin | Flight recorder |

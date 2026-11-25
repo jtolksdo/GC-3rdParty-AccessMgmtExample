@@ -60,7 +60,7 @@ melbourne    | agent | melbourne                | agent.melbourne@your-org.examp
 3. **Two ways to prove identity:**
    * **Local operator key**: password-less, for the demo. It is offered **only to a browser on the same computer** (loopback address, no proxy headers). Through a tunnel or proxy it is disabled.
    * **Genesys Cloud**: OAuth 2.0 Authorization Code + **PKCE** in a popup. The server verifies the token **itself** via `GET /api/v2/users/me` against the region in *its own* config. It checks that the token belongs to **your** org (pinned org id), then maps the Genesys user to a WX-84 user by **exact e-mail** (`server/identity.js`). No match, an unlinked user or two rows with the same e-mail all mean ACCESS DENIED.
-4. **The browser never holds a Genesys token.** The server keeps the agent's token in the session ("backend for frontend") and uses it, for example, to read which station the customer picked from the conversation's participant data.
+4. **The console never holds a Genesys token.** The sign-in popup hands it straight to the server, which keeps it in the session ("backend for frontend"). The server uses it to read the conversation's participant data: the station the customer picked and the last name they gave the chat bot. Because this runs on the *agent's* token, Genesys Cloud decides whether the agent may see the conversation at all, and WX-84 decides what they may see of the weather.
 5. **Only Genesys Cloud may frame the console** (`Content-Security-Policy: frame-ancestors`).
 6. **Everything is recorded.** Sign-ins, station access (granted *and* denied) and permission changes go to the flight recorder, shown in the maintenance panel and written to `data/flight-recorder.log`.
 
@@ -89,7 +89,7 @@ npm run genesys:setup -- --public-url https://<your-tunnel>.trycloudflare.com
 
 <img src="docs/img/widget-narrow.jpg" alt="The console at interaction-widget width: the agent's own station first" width="300" align="right">
 
-The routing: the customer page sets the Web Messaging custom attribute `location` before the first message. The Architect flow [`genesys/flow/wx84-station-router.yaml`](genesys/flow/wx84-station-router.yaml) reads it with *Get Participant Data* and transfers to `WX-84 Menlo Park`, `WX-84 Indianapolis` or `WX-84 Melbourne`. Anything else goes to `WX-84 Supervisor`, where the admin agent works. Dortmund is the HQ station: the admin sees it, but customers cannot select it.
+The routing: the customer page sets the Web Messaging custom attribute `location` before the first message. The Architect flow [`genesys/flow/wx84-station-router.yaml`](genesys/flow/wx84-station-router.yaml) first calls a small digital bot, [`wx84-name-collector.yaml`](genesys/flow/wx84-name-collector.yaml), which asks the customer for their last name and attaches it as participant data `wx84.lastName`. The console shows it in the incoming banner; it is typed by the customer, so it is a claim, not a verified identity, and WX-84 never stores it. The flow then reads `location` with *Get Participant Data* and transfers to `WX-84 Menlo Park`, `WX-84 Indianapolis` or `WX-84 Melbourne`. Anything else goes to `WX-84 Supervisor`, where the admin agent works. Dortmund is the HQ station: the admin sees it, but customers cannot select it.
 
 A ten-minute storyline for presenting the demo: [docs/demo-script.md](docs/demo-script.md).
 

@@ -1,8 +1,10 @@
 # WX-84 Station Router - Genesys Cloud inbound message flow (Archy YAML)
 #
-# Reads the Web Messaging custom attribute "location" (set by the customer page
-# with Database.set before the first message) and transfers the chat to the
-# matching station queue. Anything else goes to the WX-84 Supervisor queue.
+# 1. Calls the "WX-84 Name Collector" bot, which asks the customer for their
+#    last name, and attaches the answer as participant data "wx84.lastName".
+# 2. Reads the Web Messaging custom attribute "location" (set by the customer
+#    page with Database.set before the first message) and transfers the chat to
+#    the matching station queue. Anything else goes to the WX-84 Supervisor queue.
 #
 # Deployed by genesys/setup.js through the Architect jobs API
 # (POST /api/v2/flows/jobs) - no local Archy installation needed.
@@ -37,7 +39,42 @@ inboundShortMessage:
                 lit: none
               isInput: false
               isOutput: false
+          - stringVariable:
+              name: State.lastName
+              initialValue:
+                noValue: true
+              isInput: false
+              isOutput: false
+          - stringVariable:
+              name: State.botExitReason
+              initialValue:
+                noValue: true
+              isInput: false
+              isOutput: false
         actions:
+          # No inputText: the customer's first message must not become the slot value.
+          - callDigitalBotFlow:
+              name: Ask for the customer's last name
+              inputText:
+                noValue: true
+              exitReason:
+                var: State.botExitReason
+              intent:
+                noValue: true
+              digitalBotFlow:
+                WX-84 Name Collector:
+                  ver_latestPublished:
+                    outputs:
+                      Flow.LastName:
+                        var: State.lastName
+          - setParticipantData:
+              name: Attach last name to the conversation
+              attributes:
+                - attribute:
+                    name:
+                      lit: wx84.lastName
+                    value:
+                      exp: If(IsNotSetOrEmpty(State.lastName), "", State.lastName)
           - getParticipantData:
               name: Read customer station choice
               attributes:
@@ -61,7 +98,7 @@ inboundShortMessage:
                       - sendResponse:
                           name: Greeting supervisor
                           messageBody:
-                            lit: Welcome to the WX-84 Flight Weather Desk. Connecting you to the duty supervisor.
+                            lit: Thank you. Connecting you to the duty supervisor.
                       - transferToAcd:
                           name: To supervisor queue
                           targetQueue:
@@ -81,7 +118,7 @@ inboundShortMessage:
                           - sendResponse:
                               name: Greeting Menlo Park
                               messageBody:
-                                lit: Welcome to the WX-84 Flight Weather Desk. Connecting you to the Menlo Park station (KPAO).
+                                lit: Thank you. Connecting you to the Menlo Park station (KPAO).
                           - transferToAcd:
                               name: To Menlo Park queue
                               targetQueue:
@@ -100,7 +137,7 @@ inboundShortMessage:
                           - sendResponse:
                               name: Greeting Indianapolis
                               messageBody:
-                                lit: Welcome to the WX-84 Flight Weather Desk. Connecting you to the Indianapolis station (KIND).
+                                lit: Thank you. Connecting you to the Indianapolis station (KIND).
                           - transferToAcd:
                               name: To Indianapolis queue
                               targetQueue:
@@ -119,7 +156,7 @@ inboundShortMessage:
                           - sendResponse:
                               name: Greeting Melbourne
                               messageBody:
-                                lit: Welcome to the WX-84 Flight Weather Desk. Connecting you to the Melbourne station (YMML).
+                                lit: Thank you. Connecting you to the Melbourne station (YMML).
                           - transferToAcd:
                               name: To Melbourne queue
                               targetQueue:

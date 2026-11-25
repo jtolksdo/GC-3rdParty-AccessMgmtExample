@@ -26,13 +26,19 @@ import { USERS_FILE, ensureUsersFile, getUsers, saveUsers } from '../server/perm
 const NAMES = {
   group: 'WX-84 Agents',
   flow: 'WX-84 Station Router',
+  botFlow: 'WX-84 Name Collector',
   messengerConfig: 'WX-84 Flight Weather Desk',
   deployment: 'WX-84 Flight Weather Desk',
   oauthClient: 'WX-84 Agent Console (PKCE)',
   integration: 'WX-84 Weather Command Unit',
   queues: ['WX-84 Menlo Park', 'WX-84 Indianapolis', 'WX-84 Melbourne', 'WX-84 Supervisor'],
 };
-const FLOW_FILE = path.join(ROOT, 'genesys', 'flow', 'wx84-station-router.yaml');
+const FLOW_DIR = path.join(ROOT, 'genesys', 'flow');
+// Deployed in this order: the station router calls the name bot by name.
+const FLOWS = [
+  { name: NAMES.botFlow, type: 'digitalbot', file: 'wx84-name-collector.yaml' },
+  { name: NAMES.flow, type: 'inboundshortmessage', file: 'wx84-station-router.yaml' },
+];
 const AGENTS_FILE = path.join(ROOT, 'genesys', 'agents.json');
 const KEYCHAIN_SERVICE = 'wx84-genesys-setup';
 
@@ -362,47 +368,58 @@ async function ensurePhones(agents) {
   }
 }
 
-async function findFlow() {
-  const res = await gc('GET', `/api/v2/flows?name=${enc(NAMES.flow)}&type=inboundshortmessage&pageSize=25`);
-  return (res.entities || []).find((f) => f.name === NAMES.flow) || null;
+async function findFlow({ name, type }) {
+  const res = await gc('GET', `/api/v2/flows?name=${enc(name)}&type=${type}&pageSize=25`);
+  return (res.entities || []).find((f) => f.name === name) || null;
 }
 
-async function ensureFlow(queues) {
-  step('Architect inbound message flow');
-  let flow = await findFlow();
-  if (DRY_RUN) {
-    if (flow) same(`flow "${NAMES.flow}" exists (published: ${Boolean(flow.publishedVersion)})`);
-    else plan(`flow "${NAMES.flow}"`);
-    return flow;
-  }
-  if (Object.values(queues).some((q) => !q)) fail('Queues are missing - cannot deploy the flow.');
-
-  // Upload the Archy YAML via the Architect jobs API; Genesys runs Archy server-side.
+/** Upload one Archy YAML file via the Architect jobs API; Genesys runs Archy server-side. */
+async function deployFlow(spec) {
   const job = await gc('POST', '/api/v2/flows/jobs', {});
   const upload = await fetch(job.presignedUrl, {
     method: 'PUT',
     headers: job.headers || {},
-    body: fs.readFileSync(FLOW_FILE),
+    body: fs.readFileSync(path.join(FLOW_DIR, spec.file)),
   });
   if (!upload.ok) fail(`Flow upload failed: HTTP ${upload.status} ${await upload.text()}`);
   let status;
   for (let i = 0; i < 60; i += 1) {
     await sleep(3000);
-    status = await gc('GET', `/api/v2/flows/jobs/${job.id}`);
+    // Without expand=messages a failed job comes back without Archy's error text.
+    status = await gc('GET', `/api/v2/flows/jobs/${job.id}?expand=messages`);
     if (['Success', 'Failure'].includes(status.status)) break;
   }
   if (status?.status !== 'Success') {
-    const messages = (status?.messages || []).map((m) => `    - ${m.text || JSON.stringify(m)}`).join('\n');
-    fail(`Flow job ended with status ${status?.status || 'TIMEOUT'}\n${messages}`);
+    const messages = (status?.messages || []).map((m) => m.text || JSON.stringify(m))
+      .filter((t) => !/ArchSession|exit code|Architect Scripting errors/.test(t))
+      .map((t) => `    - ${t}`).join('\n');
+    fail(`Flow "${spec.name}" job ended with status ${status?.status || 'TIMEOUT'}\n${messages}`);
   }
-  flow = await findFlow();
+  let flow = await findFlow(spec);
   if (flow && !flow.publishedVersion) {
     await gc('POST', `/api/v2/flows/actions/publish?flow=${flow.id}`);
     await sleep(3000);
-    flow = await findFlow();
+    flow = await findFlow(spec);
   }
-  ok(`flow "${NAMES.flow}" deployed and published (${flow.id})`);
   return flow;
+}
+
+async function ensureFlows(queues) {
+  step('Architect flows (name bot, then station router)');
+  if (!DRY_RUN && Object.values(queues).some((q) => !q)) fail('Queues are missing - cannot deploy the flows.');
+  let router = null;
+  for (const spec of FLOWS) {
+    let flow = await findFlow(spec);
+    if (DRY_RUN) {
+      if (flow) same(`flow "${spec.name}" exists (published: ${Boolean(flow.publishedVersion)})`);
+      else plan(`flow "${spec.name}"`);
+    } else {
+      flow = await deployFlow(spec);
+      ok(`flow "${spec.name}" deployed and published (${flow.id})`);
+    }
+    if (spec.type === 'inboundshortmessage') router = flow;
+  }
+  return router;
 }
 
 async function ensureMessenger(flow) {
@@ -596,7 +613,7 @@ async function main() {
   const group = await ensureGroup(agents);
   const queues = await ensureQueues(organization, agents);
   await ensurePhones(agents);
-  const flow = await ensureFlow(queues);
+  const flow = await ensureFlows(queues);
   const messenger = await ensureMessenger(flow);
 
   const redirectUris = [...new Set([`http://localhost:${cfg.port}/auth/popup.html`, `${publicUrl}/auth/popup.html`])];
