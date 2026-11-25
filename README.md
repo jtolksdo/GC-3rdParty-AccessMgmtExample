@@ -127,6 +127,7 @@ docs/              architecture, setup guide, demo script
 
 ## Credits & license
 
+* The name: *WX* is aviation shorthand for weather, *84* nods to the 1980s cockpit look. WX-84 is a fictional device, not a real product.
 * Weather data: [Open-Meteo](https://open-meteo.com) (free for non-commercial use, CC BY 4.0).
 * Cockpit fonts: [B612](https://github.com/polarsys/b612) (the open-source Airbus cockpit font) and VT323, via Google Fonts.
 * Genesys Cloud APIs: [developer.genesys.cloud](https://developer.genesys.cloud).
