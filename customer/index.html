@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WX-84 Flight Weather Desk</title>
+  <meta name="description" content="Demo customer page: pick a weather station and chat with its duty meteorologist (Genesys Cloud Web Messaging).">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono:wght@400;700&family=VT323&display=swap">
+  <link rel="stylesheet" href="/customer/customer.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-inner">
+      <a class="logo" href="/customer/">WX<b>-84</b> <span>Flight Weather Desk</span></a>
+      <nav><a href="#how">How this demo works</a></nav>
+    </div>
+    <div class="livery" aria-hidden="true"><i></i><i></i><i></i></div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <p class="kicker">Duty meteorologists on call around the clock</p>
+      <h1>Need a weather briefing?<br>Pick a station and start a chat.</h1>
+      <p class="lede">Each station has its own duty meteorologist. Choose where you are flying to, and your chat goes
+        straight to the person in charge of that station.</p>
+    </section>
+
+    <div class="notice hidden" id="notice" role="status"></div>
+
+    <section class="stations" id="stations" aria-label="Weather stations"></section>
+
+    <p class="fineprint">Prefer not to choose? The chat bubble in the corner connects you to the duty supervisor.</p>
+
+    <section class="how" id="how">
+      <h2>How this demo works</h2>
+      <ol>
+        <li><b>You pick a station.</b> The page stores it as a Web Messaging <i>custom attribute</i>
+          (<code>location</code>) before the chat starts.</li>
+        <li><b>Genesys Cloud routes the chat.</b> An Architect inbound message flow reads the attribute and transfers
+          the chat to the station's queue. Without a station, the chat goes to the <i>WX-84 Supervisor</i> queue.</li>
+        <li><b>The agent answers in Genesys Cloud.</b> The WX-84 console opens in the interaction panel. It signs the
+          agent in with their verified Genesys identity and shows only the stations that agent is cleared for.</li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">Demo website, not a real service. Weather data from Open-Meteo.com. Chat powered by Genesys Cloud Web Messaging.</div>
+  </footer>
+
+  <script type="module" src="/customer/customer.js"></script>
+</body>
+</html>

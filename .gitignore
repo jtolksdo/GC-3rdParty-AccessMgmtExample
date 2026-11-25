@@ -1,0 +1,19 @@
+# Local runtime state — never committed
+data/users.txt
+data/flight-recorder.log
+config/config.json
+genesys/agents.json
+
+# Secrets (should never live in this folder at all)
+.env
+.env.*
+*.pem
+*.key
+
+# Tooling
+node_modules/
+.DS_Store
+*.log
+
+# Claude Code local settings
+.claude/settings.local.json

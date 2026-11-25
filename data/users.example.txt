@@ -1,0 +1,21 @@
+# WX-84 Weather Command Unit - users & permissions
+# ------------------------------------------------------------------
+# DEMO ONLY: plain text on purpose. No passwords, no database.
+# The server copies this file to data/users.txt on first start and
+# re-reads users.txt whenever it changes, so edits apply instantly.
+#
+# One user per line, fields separated by "|":
+#
+#   username | role | stations | genesys e-mail
+#
+#   role      admin = sees every station and may edit permissions
+#             agent = sees only the stations listed
+#   stations  comma-separated station ids, or * for all
+#             ids: dortmund, indianapolis, menlo-park, melbourne
+#   genesys   e-mail of the Genesys Cloud user that maps to this user
+#             (empty = this user cannot sign in from Genesys Cloud)
+#
+admin        | admin | *            |
+menlo        | agent | menlo-park   |
+indianapolis | agent | indianapolis |
+melbourne    | agent | melbourne    |

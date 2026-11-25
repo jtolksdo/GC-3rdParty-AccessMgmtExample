@@ -1,0 +1,135 @@
+# WX-84 Station Router - Genesys Cloud inbound message flow (Archy YAML)
+#
+# Reads the Web Messaging custom attribute "location" (set by the customer page
+# with Database.set before the first message) and transfers the chat to the
+# matching station queue. Anything else goes to the WX-84 Supervisor queue.
+#
+# Deployed by genesys/setup.js through the Architect jobs API
+# (POST /api/v2/flows/jobs) - no local Archy installation needed.
+inboundShortMessage:
+  name: WX-84 Station Router
+  description: Routes WX-84 customer chats to the station the customer selected.
+  division: Home
+  startUpRef: "/inboundShortMessage/states/state[Route by station_10]"
+  defaultLanguage: en-us
+  supportedLanguages:
+    en-us:
+      defaultLanguageSkill:
+        noValue: true
+  settingsErrorHandling:
+    errorHandling:
+      disconnect:
+        none: true
+  states:
+    - state:
+        name: Route by station
+        refId: Route by station_10
+        variables:
+          - stringVariable:
+              name: State.location
+              initialValue:
+                noValue: true
+              isInput: false
+              isOutput: false
+          - stringVariable:
+              name: State.station
+              initialValue:
+                lit: none
+              isInput: false
+              isOutput: false
+        actions:
+          - getParticipantData:
+              name: Read customer station choice
+              attributes:
+                - attribute:
+                    name:
+                      lit: location
+                    variable: State.location
+          - updateData:
+              name: Normalize station
+              statements:
+                - string:
+                    variable: State.station
+                    value:
+                      exp: If(IsNotSetOrEmpty(State.location), "none", State.location)
+          - switch:
+              name: Pick station queue
+              evaluate:
+                firstTrue:
+                  default:
+                    actions:
+                      - sendResponse:
+                          name: Greeting supervisor
+                          messageBody:
+                            lit: Welcome to the WX-84 Flight Weather Desk. Connecting you to the duty supervisor.
+                      - transferToAcd:
+                          name: To supervisor queue
+                          targetQueue:
+                            lit:
+                              name: WX-84 Supervisor
+                          priority:
+                            lit: 0
+                          preferredAgents:
+                            noValue: true
+                          languageSkill:
+                            noValue: true
+                  cases:
+                    - case:
+                        value:
+                          exp: State.station == "menlo-park"
+                        actions:
+                          - sendResponse:
+                              name: Greeting Menlo Park
+                              messageBody:
+                                lit: Welcome to the WX-84 Flight Weather Desk. Connecting you to the Menlo Park station (KPAO).
+                          - transferToAcd:
+                              name: To Menlo Park queue
+                              targetQueue:
+                                lit:
+                                  name: WX-84 Menlo Park
+                              priority:
+                                lit: 0
+                              preferredAgents:
+                                noValue: true
+                              languageSkill:
+                                noValue: true
+                    - case:
+                        value:
+                          exp: State.station == "indianapolis"
+                        actions:
+                          - sendResponse:
+                              name: Greeting Indianapolis
+                              messageBody:
+                                lit: Welcome to the WX-84 Flight Weather Desk. Connecting you to the Indianapolis station (KIND).
+                          - transferToAcd:
+                              name: To Indianapolis queue
+                              targetQueue:
+                                lit:
+                                  name: WX-84 Indianapolis
+                              priority:
+                                lit: 0
+                              preferredAgents:
+                                noValue: true
+                              languageSkill:
+                                noValue: true
+                    - case:
+                        value:
+                          exp: State.station == "melbourne"
+                        actions:
+                          - sendResponse:
+                              name: Greeting Melbourne
+                              messageBody:
+                                lit: Welcome to the WX-84 Flight Weather Desk. Connecting you to the Melbourne station (YMML).
+                          - transferToAcd:
+                              name: To Melbourne queue
+                              targetQueue:
+                                lit:
+                                  name: WX-84 Melbourne
+                              priority:
+                                lit: 0
+                              preferredAgents:
+                                noValue: true
+                              languageSkill:
+                                noValue: true
+          - disconnect:
+              name: Disconnect

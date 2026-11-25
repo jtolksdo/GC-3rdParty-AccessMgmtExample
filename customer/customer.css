@@ -1,0 +1,88 @@
+/* WX-84 Flight Weather Desk - customer page, 1980s airline-livery look */
+:root {
+  --paper: #f3ead6;
+  --paper-2: #e9dcc0;
+  --ink: #2a2118;
+  --ink-soft: #5d5040;
+  --rust: #c4501d;
+  --mustard: #e2a72e;
+  --brown: #6b3b1f;
+  --teal: #1f6f6b;
+  --card: #fffaf0;
+  --line: #d8c8a8;
+  --sans: 'B612', 'Helvetica Neue', Arial, sans-serif;
+  --mono: 'B612 Mono', ui-monospace, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font: 16px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: var(--brown); }
+.hidden { display: none !important; }
+.wrap { width: min(100% - 32px, 1080px); margin: 0 auto; }
+
+.top { background: var(--ink); color: var(--paper); }
+.top-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 0; }
+.logo { color: var(--paper); text-decoration: none; font: 700 26px/1 var(--sans); letter-spacing: .06em; }
+.logo b { color: var(--mustard); }
+.logo span { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; margin-left: 10px; opacity: .8; }
+.top nav a { color: var(--paper); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+.livery { display: grid; grid-template-rows: repeat(3, 6px); }
+.livery i:nth-child(1) { background: var(--mustard); }
+.livery i:nth-child(2) { background: var(--rust); }
+.livery i:nth-child(3) { background: var(--brown); }
+
+.hero { padding: 56px 0 28px; max-width: 760px; }
+.kicker { font: 700 12px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--rust); margin: 0 0 12px; }
+.hero h1 { font-size: clamp(28px, 4.5vw, 44px); line-height: 1.12; margin: 0 0 16px; letter-spacing: -.01em; }
+.lede { font-size: 18px; color: var(--ink-soft); margin: 0; }
+
+.notice { margin: 8px 0 24px; padding: 14px 18px; border-radius: 6px; border: 2px solid var(--rust); background: #fbe5d8; color: #6a2508; font-size: 14px; }
+.notice.ok { border-color: var(--teal); background: #dff0ec; color: #0f3f3c; }
+.notice code { font-family: var(--mono); }
+
+.stations { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 22px; margin: 18px 0 14px; }
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 10px 24px -14px rgba(60,35,10,.45);
+  transition: transform .15s, box-shadow .15s;
+}
+.card:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 16px 30px -14px rgba(60,35,10,.55); }
+.card.selected { outline: 3px solid var(--rust); outline-offset: 2px; }
+.card-top { position: relative; padding: 22px 22px 18px; background: linear-gradient(135deg, var(--paper-2), var(--card)); border-bottom: 1px solid var(--line); }
+.card-top::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 4px; background: linear-gradient(90deg, var(--mustard) 0 33%, var(--rust) 33% 66%, var(--brown) 66%); }
+.icao { font: 700 13px var(--mono); letter-spacing: .25em; color: var(--rust); }
+.card h2 { margin: 6px 0 2px; font-size: 24px; }
+.card .where { color: var(--ink-soft); font-size: 14px; }
+.card-body { padding: 18px 22px 22px; display: flex; flex-direction: column; gap: 16px; flex: 1; }
+.card-body p { margin: 0; font-size: 14px; color: var(--ink-soft); }
+.local-time { font: 22px var(--mono); color: var(--ink); }
+.local-time small { font: 11px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); margin-left: 6px; }
+.chat-btn {
+  margin-top: auto; appearance: none; border: 0; cursor: pointer;
+  background: var(--ink); color: var(--paper);
+  font: 700 14px var(--sans); letter-spacing: .1em; text-transform: uppercase;
+  padding: 14px 16px; border-radius: 6px;
+  box-shadow: 0 3px 0 var(--brown);
+}
+.chat-btn:hover { background: var(--brown); }
+.chat-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--brown); }
+.chat-btn:disabled { opacity: .45; cursor: not-allowed; }
+.chat-btn:focus-visible { outline: 3px solid var(--mustard); outline-offset: 3px; }
+
+.fineprint { font-size: 13px; color: var(--ink-soft); margin: 0 0 48px; }
+
+.how { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 26px 30px; margin-bottom: 56px; }
+.how h2 { margin: 0 0 12px; font-size: 20px; }
+.how ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; color: var(--ink-soft); }
+.how b { color: var(--ink); }
+.how code { font-family: var(--mono); background: var(--paper-2); padding: 1px 5px; border-radius: 3px; }
+
+.foot { border-top: 1px solid var(--line); padding: 22px 0 40px; font-size: 13px; color: var(--ink-soft); }
+
+@media (max-width: 560px) {
+  .logo span { display: none; }
+  .hero { padding-top: 36px; }
+  .how { padding: 20px; }
+}

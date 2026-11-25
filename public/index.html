@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WX-84 Weather Command Unit</title>
+  <meta name="description" content="Demo third-party tool with its own access management, embeddable in Genesys Cloud.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono:wght@400;700&family=VT323&display=swap">
+  <link rel="stylesheet" href="/css/cockpit.css">
+</head>
+<body>
+  <div class="console">
+
+    <header class="masthead panel">
+      <div class="brand">
+        <span class="model">WX<b>-84</b></span>
+        <span class="stripe" aria-hidden="true"></span>
+        <span class="title engraved dim">Weather Command Unit</span>
+      </div>
+      <div class="annunciators" role="status" aria-label="System annunciators">
+        <div class="lamp" id="lamp-data">DATA LINK<small>STANDBY</small></div>
+        <div class="lamp" id="lamp-auth">AUTH<small>NO OPERATOR</small></div>
+        <div class="lamp" id="lamp-genesys">GENESYS<small>OFFLINE</small></div>
+        <button class="lamp" id="lamp-caution" type="button" title="Press to acknowledge">MASTER<small>CAUTION</small></button>
+      </div>
+      <div class="clock crt amber"><span class="digits" id="utc-clock">--:--:--</span><small>UTC</small></div>
+    </header>
+
+    <!-- Local sign-in (this computer only) and/or Genesys Cloud sign-in -->
+    <section class="view hidden" id="view-login" aria-labelledby="login-title">
+      <div class="auth-panel panel">
+        <h1 class="engraved" id="login-title">Operator Authentication</h1>
+        <div class="engraved dim" style="font-size:11px">Select operator key to engage console</div>
+        <div class="crt">
+          <p id="login-crt">&gt; AWAITING OPERATOR KEY_</p>
+        </div>
+        <div class="keys" id="local-keys"></div>
+        <div id="genesys-sso" class="hidden">
+          <div class="auth-divider engraved dim" id="sso-divider">or</div>
+          <div class="keys">
+            <button class="keycap genesys" type="button" id="btn-genesys-login">
+              <span class="k-led"></span>
+              <span class="k-name">Genesys Cloud</span>
+              <span class="k-role">Verified sign-in (OAuth PKCE)</span>
+            </button>
+          </div>
+        </div>
+        <p class="auth-note" id="login-note">
+          Demo build: no passwords. Users and clearances live in <code>data/users.txt</code>.
+          The operator keys are only offered to a browser on this computer.
+        </p>
+      </div>
+    </section>
+
+    <!-- Running inside Genesys Cloud: a click is needed to open the sign-in popup -->
+    <section class="view hidden" id="view-link" aria-labelledby="link-title">
+      <div class="auth-panel panel">
+        <h1 class="engraved" id="link-title">Genesys Cloud Link</h1>
+        <div class="engraved dim" style="font-size:11px">Embedded mode - identity is provided by Genesys Cloud</div>
+        <div class="crt">
+          <p id="link-crt">&gt; LINK REQUIRED. PRESS ENGAGE TO VERIFY OPERATOR IDENTITY_</p>
+        </div>
+        <div class="keys">
+          <button class="keycap genesys" type="button" id="btn-engage">
+            <span class="k-led"></span>
+            <span class="k-name">Engage link</span>
+            <span class="k-role">Opens Genesys Cloud sign-in</span>
+          </button>
+        </div>
+        <p class="auth-note">If nothing happens, allow pop-ups for this page. You are normally already signed in to
+          Genesys Cloud, so the window closes by itself after a second.</p>
+      </div>
+    </section>
+
+    <section class="view hidden" id="view-cockpit">
+      <div class="operator-strip panel">
+        <div class="readout"><span class="r-label">Operator</span><span class="r-value amber" id="op-name">-</span></div>
+        <div class="readout"><span class="r-label">Clearance</span><span class="r-value" id="op-role">-</span></div>
+        <div class="readout"><span class="r-label">Identity source</span><span class="r-value" id="op-source">-</span></div>
+        <div class="readout"><span class="r-label">Stations cleared</span><span class="r-value green" id="op-stations">-</span></div>
+        <span class="spacer"></span>
+        <button class="switch-btn amber hidden" type="button" id="btn-maint" aria-pressed="false" aria-controls="maintenance">Maintenance panel</button>
+        <button class="switch-btn" type="button" id="btn-logout">Disengage</button>
+      </div>
+
+      <div class="incoming panel hidden" id="incoming" role="status">
+        <span class="engraved dim" style="font-size:10px">Incoming<br>transmission</span>
+        <div class="crt amber" id="incoming-text">CUSTOMER REQUESTS STATION ...</div>
+        <div class="lamp" id="incoming-verdict">CHECKING</div>
+      </div>
+
+      <section class="maintenance panel hidden" id="maintenance" aria-labelledby="maint-title">
+        <div class="maint-head">
+          <h2 class="engraved" id="maint-title">Maintenance Panel - Access Control Matrix</h2>
+          <span class="warn">Authorized personnel only</span>
+        </div>
+        <table class="matrix">
+          <thead><tr id="matrix-head"></tr></thead>
+          <tbody id="matrix-body"></tbody>
+        </table>
+        <div class="commit-bar">
+          <div class="msg" id="commit-msg">Flip the switches, lift the guard, commit. Changes are written to data/users.txt and apply instantly.</div>
+          <button class="switch-btn" type="button" id="btn-discard">Discard</button>
+          <div class="guarded" id="guarded">
+            <button class="commit" type="button" id="btn-commit" disabled>COMMIT</button>
+            <button class="guard" type="button" id="btn-guard" aria-label="Lift the guard to arm the commit button">LIFT GUARD</button>
+          </div>
+        </div>
+        <div>
+          <div class="engraved dim" style="font-size:10px;margin-bottom:8px">Flight recorder - audit trail</div>
+          <div class="crt recorder" id="recorder" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <div class="stations" id="stations"></div>
+    </section>
+
+    <footer class="status-bar panel">
+      <div class="crt" id="status-line">&gt; SYSTEM BOOT ...</div>
+      <span class="meta" id="status-meta">Weather data: Open-Meteo.com</span>
+    </footer>
+  </div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

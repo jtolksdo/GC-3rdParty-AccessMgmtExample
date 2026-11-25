@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WX-84 Genesys Link</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=VT323&display=swap">
+  <link rel="stylesheet" href="/css/cockpit.css">
+  <style>
+    body { display: grid; place-items: center; min-height: 100vh; padding: 16px; }
+    .panel { width: min(100%, 440px); padding: 26px 28px 30px; }
+    .crt { padding: 16px 18px; font-size: 21px; line-height: 1.25; margin-top: 16px; min-height: 110px; }
+    .crt.error { color: var(--red); text-shadow: 0 0 5px rgba(255,59,48,.7); }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h1 class="engraved" style="margin:0;font-size:15px">WX-84 · Genesys Cloud Link</h1>
+    <div class="crt" id="out">&gt; INITIALISING_</div>
+  </div>
+  <script type="module">
+    // OAuth 2.0 Authorization Code + PKCE against Genesys Cloud, in a popup.
+    //   1st visit (?handoff=...)  -> create verifier/challenge, redirect to login.<region>/oauth/authorize
+    //   2nd visit (?code=...)     -> exchange code for a token, hand it to the WX-84 server, close
+    import { base64url } from '/js/genesys-link.js';
+
+    const out = document.getElementById('out');
+    const KEY = 'wx84.pkce';
+    const HANDOFF_ID = /^[A-Za-z0-9_-]{22,64}$/;
+    const print = (text, error = false) => { out.textContent = `> ${text}`; out.classList.toggle('error', error); };
+    const fail = (text) => { print(text, true); throw new Error(text); };
+
+    const params = new URLSearchParams(location.search);
+    const cfg = await fetch('/api/config').then((r) => r.json());
+    if (!cfg.genesys.configured) fail('GENESYS LINK NOT CONFIGURED ON THIS UNIT');
+    const { region, oauthClientId } = cfg.genesys;
+    const redirectUri = `${location.origin}/auth/popup.html`;
+
+    if (params.has('code') || params.has('error')) {
+      const saved = JSON.parse(sessionStorage.getItem(KEY) || 'null');
+      sessionStorage.removeItem(KEY);
+      history.replaceState(null, '', '/auth/popup.html'); // do not leave the code in the address bar
+      if (params.has('error')) fail(`GENESYS: ${params.get('error_description') || params.get('error')}`);
+      if (!saved || saved.state !== params.get('state')) fail('STATE MISMATCH - SIGN-IN REJECTED');
+
+      print('EXCHANGING AUTHORIZATION CODE...');
+      const tokenRes = await fetch(`https://login.${region}/oauth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: params.get('code'),
+          redirect_uri: redirectUri,
+          client_id: oauthClientId,
+          code_verifier: saved.verifier,
+        }),
+      });
+      const token = await tokenRes.json().catch(() => ({}));
+      if (!tokenRes.ok || !token.access_token) fail(`TOKEN EXCHANGE FAILED: ${token.error_description || token.error || tokenRes.status}`);
+
+      print('VERIFYING OPERATOR WITH WX-84...');
+      const res = await fetch('/api/session/genesys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken: token.access_token, handoff: saved.handoff }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) fail(data.error || `HTTP ${res.status}`);
+      print(`LINK ESTABLISHED. OPERATOR ${data.username.toUpperCase()} CLEARED. THIS WINDOW CLOSES...`);
+      setTimeout(() => window.close(), 1200);
+    } else {
+      const handoff = params.get('handoff') || '';
+      if (!HANDOFF_ID.test(handoff)) fail('INVALID HANDOFF - START FROM THE WX-84 CONSOLE');
+      const verifier = base64url(crypto.getRandomValues(new Uint8Array(48)));
+      const challenge = base64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+      const state = base64url(crypto.getRandomValues(new Uint8Array(18)));
+      sessionStorage.setItem(KEY, JSON.stringify({ verifier, state, handoff }));
+      print('CONTACTING GENESYS CLOUD LOGIN...');
+      location.replace(`https://login.${region}/oauth/authorize?${new URLSearchParams({
+        client_id: oauthClientId,
+        response_type: 'code',
+        redirect_uri: redirectUri,
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        state,
+      })}`);
+    }
+  </script>
+</body>
+</html>

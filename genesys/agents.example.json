@@ -1,0 +1,10 @@
+{
+  "_comment": "Copy to genesys/agents.json (git-ignored) and use real mailboxes: each agent receives a Genesys Cloud invitation to set a password. Plus-addressing (you+wx84-menlo@...) works well. 'roles' are Genesys Cloud role names granted in the home division; missing roles are skipped with a warning.",
+  "roles": ["Employee", "User"],
+  "agents": {
+    "admin":        { "name": "WX-84 Admin",        "email": "you+wx84-admin@example.com",        "queue": "WX-84 Supervisor" },
+    "menlo":        { "name": "WX-84 Menlo Park",   "email": "you+wx84-menlo@example.com",        "queue": "WX-84 Menlo Park" },
+    "indianapolis": { "name": "WX-84 Indianapolis", "email": "you+wx84-indianapolis@example.com", "queue": "WX-84 Indianapolis" },
+    "melbourne":    { "name": "WX-84 Melbourne",    "email": "you+wx84-melbourne@example.com",    "queue": "WX-84 Melbourne" }
+  }
+}

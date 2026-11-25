@@ -1,0 +1,12 @@
+{
+  "port": 3000,
+  "allowLocalLogin": true,
+  "genesys": {
+    "region": "usw2.pure.cloud",
+    "orgId": "",
+    "oauthClientId": "",
+    "messengerDeploymentId": "",
+    "messengerEnvironment": "prod-usw2",
+    "messengerScriptUrl": ""
+  }
+}
