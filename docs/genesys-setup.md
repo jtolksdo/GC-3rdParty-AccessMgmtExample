@@ -94,7 +94,7 @@ The script writes `config/config.json` (IDs only, no secrets). It also links the
 ## Step 6 - Test
 
 1. Open `http://localhost:3000/customer/` and click **Chat with Menlo Park**. Write "hello".
-2. The Menlo agent accepts the chat. In Agent Workspace the widget sits behind the **cube icon** in the toolbar above the right-hand panel (or under **Tools**). Open **WX-84 Weather Command Unit** and press **Engage link**. A popup flashes and closes.
+2. The Menlo agent accepts the chat. In Agent Workspace the widget sits behind the **cube icon** in the toolbar above the right-hand panel (or under **Tools**). Open **WX-84 Weather Command Unit**. It links itself within a few seconds (lamp GENESYS turns green). If it says *AUTO-LINK NOT AVAILABLE*, press **Engage link**: a popup flashes and closes.
 3. The console shows the operator `menlo / WX-84 Menlo Park`, identity source *Genesys Cloud*, and **CUSTOMER MÜLLER REQUESTS MENLO PARK (KPAO) - CLEARED** (with the name you gave the bot).
 4. Transfer the chat to the Melbourne queue. The Melbourne agent sees Melbourne. Transfer a Melbourne chat to Menlo and the Menlo console shows **ACCESS DENIED** for the requested station.
 5. On your Mac, sign in locally as `admin` (`http://localhost:3000`), open the **maintenance panel**, revoke a station, lift the guard, commit. The agent's console locks that station within ~4 seconds.
@@ -107,6 +107,8 @@ The script writes `config/config.json` (IDs only, no secrets). It also links the
 | WX-84 panel is cut off on the right, with a horizontal scrollbar | The Agent Workspace column is wider than the browser window. Widen the window, collapse the interaction column («), or zoom out (Cmd/Ctrl −). The console itself fits down to about 230 px |
 | Profile panel says "You do not have permission to view external contacts" | Unrelated to WX-84: the agents' roles lack `externalContacts:contact:view`. Close the panel or grant the permission |
 | Widget panel stays blank | URL is `http://` (use the tunnel) · tunnel stopped or URL changed (re-run step 4) · the WX-84 server is not running |
+| "AUTO-LINK NOT AVAILABLE IN THIS BROWSER" | The silent sign-in did not work: the agent is signed out of Genesys Cloud, or the browser does not send the login cookie to embedded pages (Safari, incognito, blocked third-party cookies). Press **Engage link** for the popup |
+| "Token was not issued to the WX-84 OAuth client" | The token came from another OAuth client. Sign in through the WX-84 console only; if the setup was re-run in another org, check `oauthClientId` in `config/config.json` |
 | "POP-UP BLOCKED" | Allow pop-ups for the tunnel domain in Chrome |
 | Popup shows `redirect_uri` error | The tunnel URL changed since the last setup run; re-run step 4 |
 | "ACCESS DENIED - no WX-84 account for …" | No line in `data/users.txt` has exactly that Genesys e-mail in the `genesys` column, or two lines share it (see `server/identity.js`) |

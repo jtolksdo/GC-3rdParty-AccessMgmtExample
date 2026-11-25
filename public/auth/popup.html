@@ -20,18 +20,30 @@
     <div class="crt" id="out">&gt; INITIALISING_</div>
   </div>
   <script type="module">
-    // OAuth 2.0 Authorization Code + PKCE against Genesys Cloud, in a popup.
+    // OAuth 2.0 Authorization Code + PKCE against Genesys Cloud.
     //   1st visit (?handoff=...)  -> create verifier/challenge, redirect to login.<region>/oauth/authorize
-    //   2nd visit (?code=...)     -> exchange code for a token, hand it to the WX-84 server, close
+    //   2nd visit (?code=...)     -> exchange code for a token, hand it to the WX-84 server
+    // Runs in two places:
+    //   silent=1: a hidden iframe inside the console. Works when the agent is signed in to
+    //             Genesys Cloud and the browser sends the login cookie to embedded pages.
+    //             On failure it tells the console at once, which then offers the popup.
+    //   default:  a popup window (fallback), which closes itself when done.
     import { base64url } from '/js/genesys-link.js';
 
     const out = document.getElementById('out');
     const KEY = 'wx84.pkce';
     const HANDOFF_ID = /^[A-Za-z0-9_-]{22,64}$/;
-    const print = (text, error = false) => { out.textContent = `> ${text}`; out.classList.toggle('error', error); };
-    const fail = (text) => { print(text, true); throw new Error(text); };
-
     const params = new URLSearchParams(location.search);
+    let silent = params.get('silent') === '1';
+    const print = (text, error = false) => { out.textContent = `> ${text}`; out.classList.toggle('error', error); };
+    const fail = (text) => {
+      print(text, true);
+      if (silent && window.parent !== window) {
+        window.parent.postMessage({ wx84: 'silent-signin-failed', reason: text }, location.origin);
+      }
+      throw new Error(text);
+    };
+
     const cfg = await fetch('/api/config').then((r) => r.json());
     if (!cfg.genesys.configured) fail('GENESYS LINK NOT CONFIGURED ON THIS UNIT');
     const { region, oauthClientId } = cfg.genesys;
@@ -40,6 +52,7 @@
     if (params.has('code') || params.has('error')) {
       const saved = JSON.parse(sessionStorage.getItem(KEY) || 'null');
       sessionStorage.removeItem(KEY);
+      silent = Boolean(saved?.silent);
       history.replaceState(null, '', '/auth/popup.html'); // do not leave the code in the address bar
       if (params.has('error')) fail(`GENESYS: ${params.get('error_description') || params.get('error')}`);
       if (!saved || saved.state !== params.get('state')) fail('STATE MISMATCH - SIGN-IN REJECTED');
@@ -67,15 +80,15 @@
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) fail(data.error || `HTTP ${res.status}`);
-      print(`LINK ESTABLISHED. OPERATOR ${data.username.toUpperCase()} CLEARED. THIS WINDOW CLOSES...`);
-      setTimeout(() => window.close(), 1200);
+      print(`LINK ESTABLISHED. OPERATOR ${data.username.toUpperCase()} CLEARED.${silent ? '' : ' THIS WINDOW CLOSES...'}`);
+      if (!silent) setTimeout(() => window.close(), 1200);
     } else {
       const handoff = params.get('handoff') || '';
       if (!HANDOFF_ID.test(handoff)) fail('INVALID HANDOFF - START FROM THE WX-84 CONSOLE');
       const verifier = base64url(crypto.getRandomValues(new Uint8Array(48)));
       const challenge = base64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
       const state = base64url(crypto.getRandomValues(new Uint8Array(18)));
-      sessionStorage.setItem(KEY, JSON.stringify({ verifier, state, handoff }));
+      sessionStorage.setItem(KEY, JSON.stringify({ verifier, state, handoff, silent }));
       print('CONTACTING GENESYS CLOUD LOGIN...');
       location.replace(`https://login.${region}/oauth/authorize?${new URLSearchParams({
         client_id: oauthClientId,

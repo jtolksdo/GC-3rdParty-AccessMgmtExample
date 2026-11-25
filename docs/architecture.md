@@ -27,7 +27,7 @@ flowchart LR
   CP -- "custom attribute: location" --> MSG --> FLOW --> Q --> AD
   FLOW -- "asks last name" --> BOT
   AD -- "iframe" --> TUN --> SRV
-  AD -. "popup: PKCE sign-in" .-> LOGIN
+  AD -. "PKCE sign-in: hidden iframe, popup as fallback" .-> LOGIN
   SRV -- "verify token: /users/me" --> API
   SRV -- "participant data" --> API
   SRV --> TXT
@@ -37,31 +37,34 @@ flowchart LR
 
 ## Embedded sign-in sequence
 
-The Interaction Widget is an iframe on `apps.usw2.pure.cloud`. Signing in inside that iframe is unreliable: identity providers often refuse to be framed, and Genesys stopped issuing new *implicit grant* clients in 2026. WX-84 therefore signs in through a **popup** with **Authorization Code + PKCE**.
+The Interaction Widget is an iframe on `apps.usw2.pure.cloud`. WX-84 signs in with **Authorization Code + PKCE** (Genesys stopped issuing new *implicit grant* clients in 2026) and tries two ways, in this order:
 
-The catch: the popup and the iframe cannot talk through browser storage. Chrome partitions the iframe's storage under the top-level site `apps.usw2.pure.cloud`, while the popup is a top-level window on the WX-84 origin. And if the Genesys login page sends `Cross-Origin-Opener-Policy`, `window.opener` is gone too. So the result travels through the WX-84 server under a random, single-use **handoff id** that only the iframe and its popup know.
+1. **Silent, in a hidden iframe** (no window, no click). When the agent is signed in to Genesys Cloud, `login.usw2.pure.cloud/oauth/authorize` answers with an immediate redirect carrying the code; its login page is never shown. This needs the browser to send the Genesys login cookie (`SameSite=None`) to an embedded page: Chrome does by default, Safari and incognito windows do not.
+2. **Popup, as the fallback** ("Engage link"). If the agent is signed out, Genesys' login page must be shown, and it refuses to be framed (`frame-ancestors 'none'`). The console waits 10 seconds for the silent attempt, or less if the hidden page reports an OAuth error, then offers the popup.
+
+Neither the hidden page nor the popup can hand the result to the console through browser storage: Chrome partitions the console's storage under the top-level site `apps.usw2.pure.cloud`, and if the Genesys login page sends `Cross-Origin-Opener-Policy`, `window.opener` is gone. So the result travels through the WX-84 server under a random, single-use **handoff id** that only the console and its sign-in page know.
 
 ```mermaid
 sequenceDiagram
   autonumber
   participant W as WX-84 iframe (widget)
-  participant P as Popup (auth/popup.html)
+  participant P as Sign-in page (auth/popup.html): hidden iframe, popup as fallback
   participant L as login.usw2.pure.cloud
   participant S as WX-84 server
   participant A as api.usw2.pure.cloud
 
-  W->>W: agent clicks ENGAGE, create random handoff id
-  W->>P: window.open(/auth/popup.html?handoff=…)
+  W->>W: console opens, create random handoff id
+  W->>P: hidden iframe /auth/popup.html?silent=1&handoff=… (after a timeout: popup on ENGAGE)
   P->>P: create PKCE verifier + challenge + state (sessionStorage)
   P->>L: /oauth/authorize?response_type=code&code_challenge=…
   L-->>P: redirect ?code=…&state=… (agent already signed in: no prompt)
   P->>L: POST /oauth/token (code + code_verifier)
   L-->>P: access_token
   P->>S: POST /api/session/genesys {accessToken, handoff}
-  S->>A: GET /api/v2/users/me?expand=organization
-  A-->>S: id, name, email, organization.id
-  S->>S: org id == pinned org? map user (identity.js), create session, park under handoff
-  S-->>P: ok (popup closes)
+  S->>A: GET /api/v2/users/me?expand=organization + GET /api/v2/tokens/me
+  A-->>S: id, name, email, organization.id + issuing OAuth client
+  S->>S: pinned org? issued to the WX-84 client? map user (identity.js), create session, park under handoff
+  S-->>P: ok (a popup closes itself; the hidden iframe is removed)
   loop every second
     W->>S: GET /api/session/handoff/{id}
   end
@@ -79,6 +82,8 @@ sequenceDiagram
 | **Atomic writes** (temp file + rename) | A crash never leaves a half-written permission file. | Direct overwrite. |
 | **Input validation on `|` and line breaks** | Stops a crafted e-mail from injecting an extra "admin" line into the text file. Every storage format has its own injection risk. | None: the most common file-based bug. |
 | **Authorization Code + PKCE** | Implicit grant is deprecated (no new clients in Genesys Cloud since 2026). PKCE needs no client secret in the browser. | Implicit grant; a server-side code flow with a client secret. |
+| **Silent sign-in in a hidden iframe, popup as fallback** | Signed-in agents link without a window or a click; everyone else still gets in. | Popup only: robust, but one click and a flashing window every time. Redirecting the whole console: if the login page refuses framing, the console is gone and cannot fall back. |
+| **Token must be issued to the WX-84 OAuth client** (`GET /api/v2/tokens/me`) | Stops "token substitution": a valid token another app in the same org obtained for the agent must not open WX-84. | Checking only user and org. |
 | **Popup + server handoff** | Works despite iframe storage partitioning and COOP. The session token reaches only the iframe that started the flow. | `postMessage` via `window.opener`: breaks under COOP. `BroadcastChannel`: partitioned. |
 | **Token verified by our server** against **our configured region** | The browser could lie. If the verification URL came from the client, an attacker could point it at a fake "Genesys". | Trusting a user id passed in the widget URL: forgeable by anyone. |
 | **Pinned org id** | A valid token from *another* Genesys Cloud org must not unlock anything. | Matching by e-mail only. |

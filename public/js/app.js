@@ -1,7 +1,7 @@
 // WX-84 Weather Command Unit - main console logic.
 import { api, getToken, setToken, clearToken, ApiError } from './api.js';
 import { installDefs, createDial, createCompass } from './instruments.js';
-import { newHandoffId, openSignInPopup, waitForHandoff } from './genesys-link.js';
+import { newHandoffId, openSignInPopup, startSilentSignIn, waitForHandoff } from './genesys-link.js';
 import { createMaintenance } from './maintenance.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -107,9 +107,11 @@ async function showSignIn() {
 
   if (state.embedded) {
     show('view-link');
-    $('#link-crt').textContent = state.config.genesys.configured
-      ? '> LINK REQUIRED. PRESS ENGAGE TO VERIFY OPERATOR IDENTITY_'
-      : '> GENESYS LINK NOT CONFIGURED ON THIS UNIT. RUN: npm run genesys:setup';
+    if (state.config.genesys.configured) {
+      silentGenesysSignIn();
+    } else {
+      $('#link-crt').textContent = '> GENESYS LINK NOT CONFIGURED ON THIS UNIT. RUN: npm run genesys:setup';
+    }
     return;
   }
 
@@ -148,6 +150,38 @@ async function localSignIn(username) {
   } catch (err) {
     $('#login-crt').textContent = `> ${err.message}`;
     caution(err.message);
+  }
+}
+
+// Embedded: try the sign-in without any window first (hidden iframe). It needs the
+// agent's Genesys login cookie in an embedded context; when the browser withholds
+// it, or the agent is signed out, we fall back to the "Engage link" popup.
+const SILENT_TIMEOUT_MS = 10000;
+
+async function silentGenesysSignIn() {
+  const crt = $('#link-crt');
+  const handoff = newHandoffId();
+  const failed = new AbortController();
+  const stop = startSilentSignIn(handoff, (reason) => failed.abort(reason));
+  lamp('genesys', 'amber', 'LINKING', { blink: true });
+  crt.textContent = '> AUTO-LINK: VERIFYING OPERATOR IDENTITY WITH GENESYS CLOUD...';
+  try {
+    const { token } = await waitForHandoff(handoff, { timeoutMs: SILENT_TIMEOUT_MS, signal: failed.signal });
+    stop();
+    setToken(token);
+    await enterCockpit();
+  } catch (err) {
+    stop();
+    if (err.message === 'SUPERSEDED') return; // the agent pressed "Engage link" meanwhile
+    if (err.status === 403) {
+      // Genesys confirmed the agent, WX-84 refused: no point in offering the popup.
+      crt.textContent = `> ${err.message}`;
+      lamp('genesys', 'red', 'DENIED');
+      caution(err.message);
+      return;
+    }
+    lamp('genesys', null, 'STANDBY');
+    crt.textContent = '> AUTO-LINK NOT AVAILABLE IN THIS BROWSER. PRESS ENGAGE TO VERIFY OPERATOR IDENTITY_';
   }
 }
 
