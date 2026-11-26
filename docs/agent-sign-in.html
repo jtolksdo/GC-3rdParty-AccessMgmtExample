@@ -146,6 +146,8 @@ body[data-lang="plain"] .tech-only, body[data-lang="tech"] .plain-only { display
 .holds th, .holds td { padding: 5px 6px; border-bottom: 1px solid var(--line); text-align: left; }
 .holds thead th { font: 700 11px var(--mono); color: var(--dim); }
 .holds thead th.g { color: var(--genesys); }
+.holds thead small { display: block; font: 400 10px var(--mono); color: var(--dim); }
+.holds-note { font-size: 12.5px; color: var(--dim); margin-top: 8px; }
 .holds tbody th { font-weight: 400; }
 .holds tr:last-child th, .holds tr:last-child td { border-bottom: 0; }
 .st { font: 700 11.5px var(--mono); white-space: nowrap; }
@@ -262,7 +264,7 @@ footer { font: 12px var(--mono); color: var(--dim); }
           </defs>
           <rect class="lane-box browser" x="25" y="14" width="150" height="50" rx="7"/>
           <text class="lane-t" x="100" y="35" text-anchor="middle">Agent's browser</text>
-          <text class="lane-s" x="100" y="52" text-anchor="middle">Agent Workspace</text>
+          <text class="lane-s" x="100" y="52" text-anchor="middle">desktop + WX-84 page</text>
           <rect class="lane-box g" x="215" y="14" width="150" height="50" rx="7"/>
           <text class="lane-t g" x="290" y="35" text-anchor="middle">Genesys Cloud</text>
           <text class="lane-s" x="290" y="52" text-anchor="middle">login + API</text>
@@ -296,9 +298,10 @@ footer { font: 12px var(--mono); color: var(--dim); }
         <div class="holds-wrap">
           <table class="holds">
             <caption>Who holds what after this step</caption>
-            <thead><tr><th scope="col">Item</th><th scope="col" class="g">Genesys</th><th scope="col">Browser</th><th scope="col">Partner app</th></tr></thead>
+            <thead><tr><th scope="col">Item</th><th scope="col" class="g">Genesys Cloud<small>servers</small></th><th scope="col" class="g">Genesys pages<small>in the browser</small></th><th scope="col">WX-84 page<small>in the browser</small></th><th scope="col">WX-84 server<small>partner</small></th></tr></thead>
             <tbody id="holds"></tbody>
           </table>
+          <p class="holds-note">The agent desktop and the WX-84 page share the agent's browser, but the browser keeps each website's storage apart. The desktop never sees the secret stub, the voucher or the pass.</p>
         </div>
       </div>
     </div>
@@ -388,6 +391,7 @@ footer { font: 12px var(--mono); color: var(--dim); }
       <div class="qa"><h3>Who decides what the agent sees in the partner app?</h3><p>The partner, with its own list or policy. Genesys only vouches for who the agent is. Customer data read from Genesys stays under Genesys's rules, because the partner reads it with the agent's own pass.</p></div>
       <div class="qa"><h3>Which personal data does the partner process?</h3><p>The agent's name, e-mail and Genesys user ID, plus whatever customer data it reads with the pass. WX-84 shows the customer's last name but does not store or log it.</p></div>
       <div class="qa"><h3>Why not just put the agent's name in the widget URL?</h3><p>Anyone can edit a URL and type someone else's name. A pass issued by Genesys and checked by the partner's server cannot be invented.</p></div>
+      <div class="qa"><h3>Could the agent desktop or another app read the secret stub?</h3><p>No. The browser keeps each website's storage apart. Only the WX-84 page that created the stub can read it, and it deletes the stub right after use. PKCE does not help if the partner's own page is compromised, so partners must protect their page, for example with a strict Content Security Policy.</p></div>
     </div>
   </section>
 
@@ -422,7 +426,7 @@ footer { font: 12px var(--mono); color: var(--dim); }
     'authorization-code': { name: 'Authorization code', aka: 'the voucher', def: 'A one-time voucher, valid for a very short time, that can be traded for a pass.', wx: 'Delivered by Genesys to auth/popup.html and traded right away.' },
     'redirect-uri': { name: 'Redirect URI', def: 'The only address Genesys will send the voucher to. Registered with the OAuth client, so a stranger’s site cannot receive it.', wx: 'https://…/auth/popup.html on the WX-84 server.' },
     'pkce': { name: 'PKCE', aka: 'Proof Key for Code Exchange, said “pixie”', def: 'The app makes a secret, shows Genesys only its fingerprint, and must present the secret when trading the voucher. A stolen voucher is useless without it.', wx: 'The hidden sign-in frame makes a new secret for every sign-in.' },
-    'code-verifier': { name: 'Code verifier', aka: 'the secret stub', def: 'The secret half of PKCE. It stays in the agent’s browser until the voucher is traded.', wx: '48 random bytes, kept only for this one sign-in.' },
+    'code-verifier': { name: 'Code verifier', aka: 'the secret stub', def: 'The secret half of PKCE. The partner page creates it itself in the agent’s browser and keeps it in session storage for its own site until the voucher is traded.', wx: '48 random bytes from auth/popup.html, new for every sign-in, deleted right after use.' },
     'code-challenge': { name: 'Code challenge', aka: 'the fingerprint', def: 'A fingerprint (SHA-256 hash) of the code verifier. Safe to send, because the secret cannot be rebuilt from it.', wx: 'Sent with the first request to Genesys.' },
     'state': { name: 'State parameter', def: 'A random value the page sends with its request and expects back, so it only accepts answers to its own request.', wx: 'A mismatch shows “STATE MISMATCH - SIGN-IN REJECTED”.' },
     'access-token': { name: 'Access token', aka: 'the pass', def: 'Proof issued by Genesys: this user, this app, these rights, until this time.', wx: 'Valid for one hour; kept only on the WX-84 server.' },
@@ -442,6 +446,8 @@ footer { font: 12px var(--mono); color: var(--dim); }
     'bff': { name: 'Backend for frontend', def: 'A pattern where tokens stay on the partner’s server and the browser only holds the partner’s own ticket.', wx: 'The Genesys token never sits in the console’s code.' },
     'audit-log': { name: 'Audit log', def: 'A record of who did what, and when, including refused attempts.', wx: 'The flight recorder (data/flight-recorder.log).' },
     'client-credentials': { name: 'Client Credentials', def: 'An OAuth flow where an app signs in as itself, without a user. Good for scripts; it cannot tell you which agent is looking.', wx: 'Used only by the setup script (“WX-84 Setup”).' },
+    'same-origin': { name: 'Same-origin policy', def: 'The browser rule that keeps each website’s data apart. A page from one site cannot read the storage or cookies of another site, even inside the same window.', wx: 'The agent desktop (apps.usw2.pure.cloud) and the WX-84 page cannot read each other’s data.' },
+    'session-storage': { name: 'Session storage', aka: 'the locker', def: 'A small storage area in the browser, separate for each website and each tab, emptied when the tab closes.', wx: 'Holds the PKCE secret, the state value and the handoff ID while the sign-in is away at the Genesys login.' },
   };
 
   // --------------------------------------------------------------- steps ---
@@ -457,17 +463,17 @@ footer { font: 12px var(--mono); color: var(--dim); }
       plain: 'A chat arrives. Next to it, a window to the partner app opens. The window’s address says which conversation it is about, but not who is looking.',
       tech: `Agent Workspace loads the ${T('interaction-widget', 'Interaction Widget')}, an ${T('iframe', 'iframe')}, from the partner’s URL with the conversation ID filled in. A URL is no proof of identity: anyone can type one.` },
     { from: 'A', to: 'G', lbl: 'ask for a pass + fingerprint',
-      title: 'The partner page asks Genesys for a pass',
-      plain: 'The partner page sends the agent back to the airline desk: “Please issue a boarding pass for flight WX-84.” It keeps a secret stub in its pocket and only shows a fingerprint of it.',
-      tech: `A request to /oauth/authorize with the ${T('client-id', 'client ID')} of the ${T('oauth-client', 'OAuth client')}, the ${T('redirect-uri', 'redirect URI')}, a ${T('state', 'state')} value and the ${T('code-challenge', 'code challenge')}. The ${T('code-verifier', 'code verifier')} stays in the page. In WX-84 this runs in a hidden frame.` },
+      title: 'The WX-84 page asks Genesys for a pass',
+      plain: 'The WX-84 page sends the agent back to the airline desk: “Please issue a boarding pass for flight WX-84.” Before it goes, it writes a secret note and locks it in its own locker in the browser. The desk only gets a photo of the note, its fingerprint. Nobody hands out the note: the WX-84 page makes it up itself.',
+      tech: `The WX-84 page creates the ${T('code-verifier', 'code verifier')} itself (48 random bytes) and parks it in ${T('session-storage', 'session storage')} for the WX-84 site, where the ${T('same-origin', 'same-origin policy')} keeps the agent desktop out. Then a request to /oauth/authorize with the ${T('client-id', 'client ID')} of the ${T('oauth-client', 'OAuth client')}, the ${T('redirect-uri', 'redirect URI')}, a ${T('state', 'state')} value and the ${T('code-challenge', 'code challenge')}. In WX-84 this runs in a hidden frame.` },
     { from: 'G', to: 'A', lbl: 'one-time voucher',
       title: 'Genesys recognizes the agent',
       plain: 'The desk recognizes the agent from this morning, so no passport is needed. It hands out a one-time voucher, and only to the gate address registered for WX-84.',
       tech: `Thanks to the ${T('login-cookie', 'login cookie')}, Genesys skips its login page and sends an ${T('authorization-code', 'authorization code')} to the ${T('redirect-uri', 'redirect URI')}. Signed-out agents, Safari and private windows get the ${T('popup', 'popup fallback')}.` },
     { from: 'A', to: 'G', lbl: 'voucher + secret stub',
       title: 'Voucher and stub are traded',
-      plain: 'The page brings the voucher back, together with the secret stub. The desk checks that the stub matches the fingerprint from before. A stolen voucher on its own is worthless.',
-      tech: `A request to /oauth/token with the ${T('authorization-code', 'authorization code')} and the ${T('code-verifier', 'code verifier')}: this is ${T('pkce', 'PKCE')}. No ${T('client-secret', 'client secret')} is needed, because the console is a ${T('public-client', 'public client')}.` },
+      plain: 'Genesys sends the agent back to the same WX-84 page. The page takes the secret note out of its locker, deletes it there, and brings it to the desk with the voucher. The desk checks the note against the photo. A stolen voucher on its own is worthless.',
+      tech: `The page reads the ${T('code-verifier', 'code verifier')} from ${T('session-storage', 'session storage')}, deletes it, and sends it with the ${T('authorization-code', 'authorization code')} to /oauth/token: this is ${T('pkce', 'PKCE')}. No ${T('client-secret', 'client secret')} is needed, because the console is a ${T('public-client', 'public client')}.` },
     { from: 'G', to: 'A', lbl: 'boarding pass (1 hour)',
       title: 'Genesys issues the boarding pass',
       plain: 'The agent now holds a boarding pass: valid for one hour, for WX-84 only, and it only allows reading. It never allows more than the agent may do anyway.',
@@ -490,14 +496,16 @@ footer { font: 12px var(--mono); color: var(--dim); }
       tech: `WX-84 issues its own ${T('session-ticket', 'session ticket')} (12 hours). Every request is authorized against users.txt again, and each decision goes to the ${T('audit-log', 'audit log')}, the flight recorder.` },
   ];
   // Who holds what after each step: h has it, n receives it now, u used up, o passed on, x never, . no
+  // g = Genesys Cloud servers, d = Genesys pages in the browser (login page, agent desktop),
+  // w = the WX-84 page in the browser, p = the WX-84 server
   const HOLDS = [
-    { item: 'Password', term: 'authentication', g: 'hhhhhhhhhh', b: 'n.........', p: 'xxxxxxxxxx' },
-    { item: 'Login cookie', term: 'login-cookie', g: 'nhhhhhhhhh', b: 'nhhhhhhhhh', p: 'xxxxxxxxxx' },
-    { item: 'Secret stub (PKCE)', term: 'code-verifier', g: '....n.....', b: '..nhu.....', p: 'xxxxxxxxxx' },
-    { item: 'Voucher (code)', term: 'authorization-code', g: '...nu.....', b: '...nu.....', p: 'xxxxxxxxxx' },
-    { item: 'Pass (token)', term: 'access-token', g: '.....nhhhh', b: '.....no...', p: '......nhhh' },
-    { item: 'Verified identity', term: 'token-verification', g: 'hhhhhhhhhh', b: '.........n', p: '.......nhh' },
-    { item: 'Partner ticket', term: 'session-ticket', g: 'xxxxxxxxxx', b: '.........n', p: '.........n' },
+    { item: 'Password', term: 'authentication', g: 'hhhhhhhhhh', d: 'n.........', w: 'xxxxxxxxxx', p: 'xxxxxxxxxx' },
+    { item: 'Login cookie', term: 'login-cookie', g: 'nhhhhhhhhh', d: 'nhhhhhhhhh', w: 'xxxxxxxxxx', p: 'xxxxxxxxxx' },
+    { item: 'Secret stub (PKCE)', term: 'code-verifier', g: '....n.....', d: 'xxxxxxxxxx', w: '..nhu.....', p: 'xxxxxxxxxx' },
+    { item: 'Voucher (code)', term: 'authorization-code', g: '...nu.....', d: 'xxxxxxxxxx', w: '...nu.....', p: 'xxxxxxxxxx' },
+    { item: 'Pass (token)', term: 'access-token', g: '.....nhhhh', d: 'xxxxxxxxxx', w: '.....no...', p: '......nhhh' },
+    { item: 'Verified identity', term: 'token-verification', g: 'hhhhhhhhhh', d: 'hhhhhhhhhh', w: '.........n', p: '.......nhh' },
+    { item: 'Partner ticket', term: 'session-ticket', g: 'xxxxxxxxxx', d: 'xxxxxxxxxx', w: '.........n', p: '.........n' },
   ];
   const HOLD_TEXT = { h: 'has it', n: 'receives', u: 'used up', o: 'passes on', x: 'never', '.': '–' };
   const HOLD_CLASS = { h: 'h', n: 'n', u: 'u', o: 'o', x: 'x', '.': 'd' };
@@ -576,7 +584,7 @@ footer { font: 12px var(--mono); color: var(--dim); }
     HOLDS.forEach((h) => {
       const tr = document.createElement('tr');
       const th = document.createElement('th'); th.scope = 'row'; th.textContent = h.item; tr.append(th);
-      for (const who of ['g', 'b', 'p']) {
+      for (const who of ['g', 'd', 'w', 'p']) {
         const code = h[who][state.step];
         const td = document.createElement('td');
         const sp = document.createElement('span'); sp.className = `st ${HOLD_CLASS[code]}`; sp.textContent = HOLD_TEXT[code];
