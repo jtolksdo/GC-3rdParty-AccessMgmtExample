@@ -2,6 +2,18 @@
 // the flight recorder. The UI is only a convenience - the server re-checks
 // admin clearance on every call, so hiding this panel is not the protection.
 
+// Demo screens get shared, so e-mail addresses stay masked until someone clicks
+// them. Cosmetic only: the admin API still returns them in full.
+const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+function maskEmail(email) {
+  const [local, domain = ''] = email.split('@');
+  const dot = domain.lastIndexOf('.');
+  const tld = dot > 0 ? domain.slice(dot) : '';
+  // Fixed-length dots: the mask must not reveal how long the address is.
+  return `${local.slice(0, 1)}••••••@${domain.slice(0, 1)}••••${tld}`;
+}
+const maskEmails = (text) => String(text).replace(EMAIL, maskEmail);
+
 export function createMaintenance({ api, getMe, getStations, onCommitted, say, caution }) {
   const $ = (sel) => document.querySelector(sel);
   const panel = $('#maintenance');
@@ -12,6 +24,7 @@ export function createMaintenance({ api, getMe, getStations, onCommitted, say, c
   let original = [];
   let draft = [];
   let recorderTimer = null;
+  const revealed = new Set(); // flight-recorder entries whose e-mail an admin clicked open
 
   const clone = (users) => users.map((u) => ({ ...u, stations: [...u.stations] }));
   const stationsOf = (u) => (u.stations.includes('*') ? getStations().map((s) => s.id) : u.stations);
@@ -49,9 +62,30 @@ export function createMaintenance({ api, getMe, getStations, onCommitted, say, c
         <td><span class="u-name"></span></td>
         <td>${toggle('role', isAdmin, isSelf, isSelf ? 'You cannot remove your own admin clearance' : `Admin clearance for ${user.username}`, 'role')}</td>
         ${stations.map((s) => `<td>${toggle(`st:${s.id}`, isAdmin || stationsOf(user).includes(s.id), isAdmin, `${s.name} for ${user.username}`)}</td>`).join('')}
-        <td><input class="email-input" type="email" data-k="email" placeholder="not linked" spellcheck="false" autocomplete="off" aria-label="Genesys Cloud e-mail for ${user.username}"></td>`;
+        <td>
+          <button type="button" class="email-mask" title="Click to show and edit" aria-label="Show Genesys Cloud e-mail for ${user.username}"></button>
+          <input class="email-input hidden" type="email" data-k="email" placeholder="not linked" spellcheck="false" autocomplete="off" aria-label="Genesys Cloud e-mail for ${user.username}">
+        </td>`;
       tr.querySelector('.u-name').textContent = user.username;
-      tr.querySelector('[data-k="email"]').value = user.genesysEmail;
+      const email = tr.querySelector('[data-k="email"]');
+      const mask = tr.querySelector('.email-mask');
+      email.value = user.genesysEmail;
+      // Masked by default; a click opens the real field, leaving it masks it again.
+      const showMasked = () => {
+        const value = email.value.trim().toLowerCase();
+        mask.textContent = value ? maskEmail(value) : 'not linked';
+        mask.classList.toggle('empty', !value);
+        mask.classList.remove('hidden');
+        email.classList.add('hidden');
+      };
+      mask.addEventListener('click', () => {
+        mask.classList.add('hidden');
+        email.classList.remove('hidden');
+        email.focus();
+      });
+      email.addEventListener('blur', showMasked);
+      email.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === 'Escape') email.blur(); });
+      showMasked();
       tr.addEventListener('change', (ev) => onEdit(i, ev.target));
       tr.addEventListener('input', (ev) => { if (ev.target.dataset.k === 'email') onEdit(i, ev.target, false); });
       body.append(tr);
@@ -130,11 +164,25 @@ export function createMaintenance({ api, getMe, getStations, onCommitted, say, c
           new Date(e.at).toLocaleTimeString('en-GB', { hour12: false }),
           e.actor, e.source, e.action, e.target || e.detail, e.result,
         ];
+        const key = `${e.at}|${e.action}|${e.actor}`;
+        const open = revealed.has(key);
         cells.forEach((text, idx) => {
           const span = document.createElement('span');
           if (idx === 2) span.className = 'src';
-          span.textContent = String(text).toUpperCase();
-          if (idx === 4 && e.detail) span.title = e.detail;
+          let shown = String(text);
+          if (idx === 4) {
+            const hasEmail = maskEmails(shown) !== shown || maskEmails(e.detail || '') !== (e.detail || '');
+            if (hasEmail) {
+              span.classList.add('masked');
+              span.addEventListener('click', () => {
+                if (open) revealed.delete(key); else revealed.add(key);
+                refreshRecorder();
+              });
+              if (!open) shown = maskEmails(shown);
+            }
+            if (e.detail) span.title = open ? e.detail : `${maskEmails(e.detail)}${hasEmail ? ' (click to show)' : ''}`;
+          }
+          span.textContent = shown.toUpperCase();
           line.append(span);
         });
         box.append(line);

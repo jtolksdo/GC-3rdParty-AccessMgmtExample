@@ -58,7 +58,7 @@ melbourne    | agent | melbourne                | agent.melbourne@your-org.examp
 
 * `role`: `admin` sees every station and may change permissions. `agent` sees only the listed stations. An unknown role is treated as `agent` (fail closed).
 * `stations`: `dortmund`, `indianapolis`, `menlo-park`, `melbourne`, or `*`.
-* `genesys e-mail`: links the WX-84 user to a Genesys Cloud user. The setup script fills it in for you.
+* `genesys e-mail`: links the WX-84 user to a Genesys Cloud user. The setup script fills it in for you. The maintenance panel shows it masked (`j••••••@g••••.com`), also in the flight recorder, so it is safe on a shared screen; a click shows the full address.
 
 ![Maintenance panel with access matrix, guarded commit switch and flight recorder](docs/img/admin-maintenance.jpg)
 
