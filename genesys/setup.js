@@ -30,7 +30,8 @@ const NAMES = {
   botFlow: 'WX-84 Name Collector',
   messengerConfig: 'WX-84 Flight Weather Desk',
   deployment: 'WX-84 Flight Weather Desk',
-  oauthClient: 'WX-84 Agent Console (PKCE)',
+  oauthClient: 'WX-84 Agent Console',
+  oauthClientLegacy: 'WX-84 Agent Console (PKCE)', // first version's name: renamed in place, same id and secret
   integration: 'WX-84 Weather Command Unit',
   // Every chat goes to this one queue. Its members are the group above, so
   // whoever is in "WX-84 Agents" takes chats; WX-84 decides what each one sees.
@@ -539,9 +540,9 @@ async function ensureMessenger(flow) {
 }
 
 async function ensureOAuthClient(redirectUris) {
-  step('OAuth client for the agent console (Authorization Code with client secret + PKCE, refresh tokens)');
+  step('OAuth client for the agent console (Authorization Code with client secret, refresh tokens)');
   const clients = await listAll('/api/v2/oauth/clients');
-  let client = clients.find((x) => x.name === NAMES.oauthClient);
+  let client = clients.find((x) => x.name === NAMES.oauthClient) || clients.find((x) => x.name === NAMES.oauthClientLegacy);
   const body = {
     name: NAMES.oauthClient,
     description: 'WX-84 demo: agents sign in to the WX-84 console with their Genesys Cloud identity',
@@ -558,12 +559,14 @@ async function ensureOAuthClient(redirectUris) {
     const current = [...(client.registeredRedirectUri || [])].sort().join();
     const urisChanged = current !== [...redirectUris].sort().join();
     const lifetimeChanged = client.accessTokenValiditySeconds !== AGENT_TOKEN_SECONDS;
-    if ((urisChanged || lifetimeChanged) && !DRY_RUN) {
+    const renamed = client.name !== NAMES.oauthClient;
+    if ((urisChanged || lifetimeChanged || renamed) && !DRY_RUN) {
       client = await gc('PUT', `/api/v2/oauth/clients/${client.id}`, { ...body, roleIds: client.roleIds });
       if (urisChanged) ok(`updated redirect URIs: ${redirectUris.join(', ')}`);
       if (lifetimeChanged) ok(`agent access token lifetime set to ${AGENT_TOKEN_SECONDS / 60} minutes (renewed by the server)`);
-    } else if (urisChanged || lifetimeChanged) {
-      plan('update redirect URIs / agent token lifetime');
+      if (renamed) ok(`renamed the OAuth client to "${NAMES.oauthClient}" (same id and secret)`);
+    } else if (urisChanged || lifetimeChanged || renamed) {
+      plan('update redirect URIs / agent token lifetime / name');
     } else {
       same(`OAuth client exists (${client.id})`);
     }

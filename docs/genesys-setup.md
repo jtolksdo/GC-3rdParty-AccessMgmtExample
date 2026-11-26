@@ -13,7 +13,7 @@ This guide connects the local WX-84 console to a Genesys Cloud org. The provisio
 | Digital bot flow | `WX-84 Name Collector` | Asks the customer for their last name (one slot, `builtin:any`, no Virtual Agent). Each bot session is billed as "Genesys Cloud for Bot Flow - Digital" (tokens) |
 | Inbound message flow | `WX-84 Station Router` | Calls the name bot, attaches the answer as `wx84.lastName`, then transfers every chat to `WX-84 Weather Desk`. The custom attribute `location` travels along as context |
 | Messenger configuration + deployment | `WX-84 Flight Weather Desk` | The chat on the customer page. *Conversation clear* is enabled, so the page's **New conversation** button (and the trash icon in the chat header) can end a chat and remove it from the browser |
-| OAuth client (Authorization Code) | `WX-84 Agent Console (PKCE)` (name kept from the first version) | Agents sign in to WX-84 with their Genesys identity. The WX-84 server trades the code for tokens with the client **secret**, keeps the **refresh token** and renews the 1-hour access token itself, so agents are not asked again. The setup stores the secret in the macOS keychain (service `wx84-genesys-setup`, account `agent-client-secret`) and only issues a new one when Genesys no longer accepts the stored one. See the [partner guide](partner-sso-guide.md) |
+| OAuth client (Authorization Code) | `WX-84 Agent Console` (renamed by the setup from the first version's `WX-84 Agent Console (PKCE)`, same id and secret) | Agents sign in to WX-84 with their Genesys identity. The WX-84 server trades the code for tokens with the client **secret**, keeps the **refresh token** and renews the 1-hour access token itself, so agents are not asked again. The setup stores the secret in the macOS keychain (service `wx84-genesys-setup`, account `agent-client-secret`) and only issues a new one when Genesys no longer accepts the stored one. See the [partner guide](partner-sso-guide.md) |
 | Interaction Widget | `WX-84 Weather Command Unit` | Shows the console inside web-messaging interactions on the `WX-84 Weather Desk` queue |
 
 ## Prerequisites
@@ -92,6 +92,7 @@ The script writes `config/config.json` (IDs only, no secrets). It also links the
 1. Each agent accepts the invitation e-mail and sets a password.
 2. **Run the setup once more.** New users join the group, and with it the queue, only after they are active.
 3. Each agent signs in to `https://apps.usw2.pure.cloud` (use separate Chrome profiles or incognito windows to run several agents at once) and goes **On Queue**. Genesys Cloud loads widgets at sign-in, so an agent who was already signed in when the setup ran must reload the page once.
+4. Each agent opens the WX-84 panel once, in a chat on the Weather Desk. It links silently (or after one click on **Engage link**). From then on the WX-84 server keeps the link with the refresh token, also across server restarts: the flight recorder shows one `SIGN-IN` per agent and then `TOKEN REFRESH OK` every hour.
 
 Every chat goes to `WX-84 Weather Desk`, and Genesys offers it to any agent of the group who is On Queue and idle. To decide who gets the next chat, put only that agent On Queue.
 

@@ -425,7 +425,7 @@ footer { font: 12px var(--mono); color: var(--dim); }
     'sso': { name: 'Single sign-on', aka: 'SSO', def: 'Sign in once and use several apps without signing in again.', wx: 'The agent’s Genesys sign-in also opens WX-84.' },
     'login-cookie': { name: 'Login cookie', def: 'A small note the browser keeps so a website recognizes you on your next visit.', wx: 'Needed once, for the first silent link. Renewal works without it.' },
     'oauth': { name: 'OAuth 2.0', def: 'The standard rulebook for letting an app act for a user without ever seeing the user’s password.', wx: 'WX-84 uses the Authorization Code flow with PKCE.' },
-    'oauth-client': { name: 'OAuth client', def: 'An app registered in Genesys Cloud so it may ask for passes. It lists where passes may be delivered and what they may do.', wx: '“WX-84 Agent Console (PKCE)”, created by setup.js.' },
+    'oauth-client': { name: 'OAuth client', def: 'An app registered in Genesys Cloud so it may ask for passes. It lists where passes may be delivered and what they may do.', wx: '“WX-84 Agent Console”, created by setup.js.' },
     'client-id': { name: 'Client ID', def: 'The public ID of a registered app. Not a secret.', wx: 'Sent with every pass request; WX-84 also checks it on every pass it receives.' },
     'client-secret': { name: 'Client secret', aka: 'the partner secret', def: 'A password for an app. Only apps that run on a server can keep one safe.', wx: 'Known only to the WX-84 server (macOS keychain in the demo). It turns the voucher into a pass and renews the pass.' },
     'public-client': { name: 'Public client', def: 'An app that cannot keep a secret, such as a web page. It proves itself with PKCE instead, and Genesys gives it no refresh token.', wx: 'The first version of WX-84 worked this way; the popup came back every hour.' },
@@ -654,9 +654,9 @@ footer { font: 12px var(--mono); color: var(--dim); }
     { k: 'PERSON', q: 'Is this e-mail on our list, exactly once?', fail: '403 · ACCESS DENIED' },
   ];
   const VISITORS = [
-    { id: 'menlo', label: 'Menlo Park agent', sub: 'On the list for one station', name: 'Maya Ortiz', email: 'maya.ortiz@example.com', org: ORG, app: 'WX-84 Agent Console (PKCE)', checks: [1, 1, 1], user: 'menlo', role: 'agent', stations: ['menlo-park'] },
-    { id: 'admin', label: 'Supervisor', sub: 'On the list as admin', name: 'Sam Lee', email: 'sam.lee@example.com', org: ORG, app: 'WX-84 Agent Console (PKCE)', checks: [1, 1, 1], user: 'admin', role: 'admin', stations: ['dortmund', 'indianapolis', 'menlo-park', 'melbourne'] },
-    { id: 'newhire', label: 'New hire', sub: 'Genesys user, not on the list yet', name: 'Noor Haddad', email: 'noor.haddad@example.com', org: ORG, app: 'WX-84 Agent Console (PKCE)', checks: [1, 1, 0], reason: 'No WX-84 account for noor.haddad@example.com' },
+    { id: 'menlo', label: 'Menlo Park agent', sub: 'On the list for one station', name: 'Maya Ortiz', email: 'maya.ortiz@example.com', org: ORG, app: 'WX-84 Agent Console', checks: [1, 1, 1], user: 'menlo', role: 'agent', stations: ['menlo-park'] },
+    { id: 'admin', label: 'Supervisor', sub: 'On the list as admin', name: 'Sam Lee', email: 'sam.lee@example.com', org: ORG, app: 'WX-84 Agent Console', checks: [1, 1, 1], user: 'admin', role: 'admin', stations: ['dortmund', 'indianapolis', 'menlo-park', 'melbourne'] },
+    { id: 'newhire', label: 'New hire', sub: 'Genesys user, not on the list yet', name: 'Noor Haddad', email: 'noor.haddad@example.com', org: ORG, app: 'WX-84 Agent Console', checks: [1, 1, 0], reason: 'No WX-84 account for noor.haddad@example.com' },
     { id: 'otherapp', label: 'Pass from another app', sub: 'Right org, wrong app', name: 'Maya Ortiz', email: 'maya.ortiz@example.com', org: ORG, app: 'Acme Reporting Tool', checks: [1, 0, -1], reason: 'Pass was not issued to the WX-84 OAuth client' },
     { id: 'otherorg', label: 'Agent of another company', sub: 'Different Genesys customer', name: 'Chris Park', email: 'chris.park@example.org', org: 'Globex (another Genesys customer)', app: 'an app in the Globex org', checks: [0, -1, -1], reason: 'Pass belongs to a different Genesys Cloud organization' },
   ];

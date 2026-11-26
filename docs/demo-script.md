@@ -11,6 +11,7 @@
 * Browser window 4: `http://localhost:3000`, signed in locally as **admin**, maintenance panel open.
 * All other WX-84 agents Off Queue. Every chat goes to the same queue, *WX-84 Weather Desk*, so whoever is On Queue gets the next chat.
 * Between runs, press **New conversation** at the top of the customer page. It ends the previous chat in Genesys Cloud and clears it from the browser, so the next station choice starts a fresh conversation.
+* Every demo agent has linked WX-84 once since the last change to the sign-in (one `SIGN-IN` per agent in the flight recorder). The link survives server restarts and renews itself every hour, so there is no sign-in during the demo.
 
 ## Storyline
 
@@ -34,7 +35,7 @@
 | "Is the customer's name verified?" | No. The customer typed it; it is a claim, fine for a weather briefing. For real customer data, use Authenticated Web Messaging so Genesys Cloud receives a verified customer identity. WX-84 shows the name but never stores or logs it. |
 | "Who may see the customer's name?" | Only agents whom Genesys Cloud lets see the conversation: WX-84 reads it with the agent's own token. Genesys protects the customer data, WX-84 protects its own data. |
 | "Does this scale beyond a text file?" | The file is a stand-in for any policy store: database, IdP groups, Genesys groups. The pattern stays the same: verify identity, map identity, check per request, log. |
-| "What does the partner need from Genesys?" | One OAuth client (Code + PKCE), one Interaction Widget, and the `users/me` call. No Genesys data is stored by the partner. |
+| "What does the partner need from Genesys?" | One OAuth client (Authorization Code, its secret only on the partner's server), one Interaction Widget, and the `users/me` and `tokens/me` calls. No Genesys data is stored by the partner. |
 | "What happens when the Genesys token expires?" | Nothing the agent notices. The WX-84 server keeps a refresh token and renews the 1-hour token itself, in the background, without the agent and without the agent's Genesys login. Sessions are stored encrypted, so even a server restart does not ask anyone to sign in again. |
 | "Why did the popup ask for my password, although I am signed in to Genesys?" | Agent Workspace stays signed in on its own token; the separate Genesys *login* session can end after about an hour. That only matters for the very first link of an agent: afterwards the refresh token makes the login session irrelevant. |
 | "How often does an agent sign in to the partner app?" | Normally never: the first link happens silently because the agent just signed in to Genesys, and the server keeps the link alive with the refresh token. At most one click in browsers that block third-party cookies. How partners build this: [partner guide](partner-sso-guide.md). |
