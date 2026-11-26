@@ -1,0 +1,763 @@
+<title>WX-84 Agent Sign-in</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:ital,wght@0,400;0,700;1,400&family=B612+Mono:wght@400;700&family=VT323&display=swap">
+<style>
+/* Layout: a briefing document. Thesis and 3-part summary up top, then a swimlane sequence with a live
+   step card beside it, a "gate" simulator, guidance for partners, FAQ and a filterable glossary. */
+:root {
+  --bg: #e9edf0;
+  --surface: #f8fafb;
+  --surface-2: #eef2f4;
+  --ink: #12181c;
+  --dim: #56616a;
+  --faint: #a3adb4;
+  --line: #cfd7dc;
+  --accent: #9a6100;
+  --accent-fill: #ffb000;
+  --accent-ink: #1a1200;
+  --genesys: #0b6f96;
+  --ok: #1d7f3e;
+  --bad: #c0362c;
+  --hazard-dark: #1b1813;
+  --crt-bg: #0b1a10;
+  --crt-ink: #3dff7a;
+  --sans: 'B612', 'Helvetica Neue', Arial, sans-serif;
+  --mono: 'B612 Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --crt: 'VT323', 'B612 Mono', ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d0f11; --surface: #171b1e; --surface-2: #1f2427; --ink: #e8e3d4; --dim: #9c978a; --faint: #4f555a;
+    --line: #2f363b; --accent: #ffb000; --genesys: #59d2ff; --ok: #3dff7a; --bad: #ff6b61; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d0f11; --surface: #171b1e; --surface-2: #1f2427; --ink: #e8e3d4; --dim: #9c978a; --faint: #4f555a;
+  --line: #2f363b; --accent: #ffb000; --genesys: #59d2ff; --ok: #3dff7a; --bad: #ff6b61; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15.5px/1.6 var(--sans); }
+.wrap {
+  max-width: 1160px; margin: 0 auto;
+  padding-block: 32px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 44px;
+}
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+p { margin: 0; }
+code { font: .9em var(--mono); background: var(--surface-2); border: 1px solid var(--line); padding: 0 4px; border-radius: 3px; }
+button { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent-fill); outline-offset: 2px; }
+a { color: var(--genesys); }
+.eyebrow { font: 700 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.eyebrow b { color: var(--accent); }
+section { display: grid; gap: 16px; }
+section > h2 { font: 700 clamp(21px, 2.6vw, 26px)/1.25 var(--sans); }
+.intro { color: var(--dim); max-width: 72ch; }
+
+/* ---------- hero ---------- */
+header { display: grid; gap: 14px; }
+h1 { font: 700 clamp(30px, 4.6vw, 46px)/1.12 var(--sans); max-width: 22ch; letter-spacing: -.01em; }
+.lede { font-size: 17px; max-width: 66ch; }
+.lede b { background: linear-gradient(transparent 60%, color-mix(in srgb, var(--accent-fill) 45%, transparent) 60%); }
+.summary { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin-top: 6px; }
+.sum { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.sum .n { font: 700 11px var(--mono); letter-spacing: .1em; color: var(--dim); }
+.sum .who { font: 700 16px var(--sans); }
+.sum .who.g { color: var(--genesys); }
+.sum .what { font-size: 14px; color: var(--dim); }
+.sum .term-name { font: 700 11.5px var(--mono); color: var(--accent); letter-spacing: .04em; }
+
+/* ---------- toolbar ---------- */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 3px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+.seg button { background: transparent; border: 0; border-radius: 6px; padding: 7px 12px; font: 700 13px var(--sans); color: var(--dim); cursor: pointer; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--accent-fill); color: var(--accent-ink); }
+.ctl-label { font: 700 10.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+body[data-lang="plain"] .tech-only, body[data-lang="tech"] .plain-only { display: none !important; }
+
+/* ---------- sequence ---------- */
+.seq-grid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; }
+@media (max-width: 920px) { .seq-grid { grid-template-columns: 1fr; } }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; }
+.seq { display: block; width: 100%; min-width: 560px; height: auto; }
+.lane-box { fill: var(--surface-2); stroke: var(--ink); stroke-width: 1.2; }
+.lane-box.browser { stroke: var(--faint); stroke-dasharray: 5 4; }
+.lane-box.g { stroke: var(--genesys); stroke-width: 1.6; }
+.lane-t { font: 700 12.5px var(--sans); fill: var(--ink); }
+.lane-t.g { fill: var(--genesys); }
+.lane-s { font: 10.5px var(--mono); fill: var(--dim); }
+.life { stroke: var(--faint); stroke-dasharray: 3 5; stroke-width: 1.2; }
+.life.g { stroke: var(--genesys); opacity: .6; }
+.mk { fill: var(--ink); }
+.mk-hot { fill: var(--accent); }
+.row { cursor: pointer; }
+.row .hit { fill: transparent; }
+.row:hover .hit { fill: var(--surface-2); }
+.row .ln { stroke: var(--ink); stroke-width: 1.5; fill: none; marker-end: url(#mk); }
+.row.both .ln { marker-start: url(#mk); }
+.row .lbl { font: 10.5px var(--mono); fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
+.row .num circle { fill: var(--surface); stroke: var(--ink); stroke-width: 1.2; }
+.row .num text { font: 700 10.5px var(--mono); fill: var(--ink); }
+.row.future { opacity: .28; }
+.row.cur .ln { stroke: var(--accent); stroke-width: 2.6; marker-end: url(#mk-hot); }
+.row.cur.both .ln { marker-start: url(#mk-hot); }
+.row.cur .lbl { fill: var(--accent); font-weight: 700; }
+.row.cur .num circle { fill: var(--accent-fill); stroke: var(--accent-fill); }
+.row.cur .num text { fill: var(--accent-ink); }
+.row.pw .lbl { fill: var(--bad); }
+.packet { fill: var(--accent-fill); stroke: var(--accent-ink); stroke-width: 1; opacity: 0; }
+.row.cur .packet { animation: travel 1.8s ease-in-out infinite; }
+@keyframes travel {
+  0% { transform: translateX(0); opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { transform: translateX(var(--dx)); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .row.cur .packet { animation: none; opacity: 0; } }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.step-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; }
+.pager { display: flex; gap: 6px; }
+.pager button { background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 11px; font: 700 12px var(--mono); cursor: pointer; }
+.pager button:disabled { opacity: .35; cursor: default; }
+.pager #play[aria-pressed="true"] { background: var(--accent-fill); color: var(--accent-ink); border-color: var(--accent-fill); }
+.step-title { font: 700 20px/1.3 var(--sans); }
+.say { display: grid; gap: 4px; }
+.say .k { font: 700 10.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.say.plain p { font-size: 16px; }
+.say.tech p { font-size: 14.5px; color: var(--ink); }
+.term {
+  display: inline; padding: 0 4px; margin: 0 1px; border: 0; border-bottom: 1.5px dashed var(--accent); border-radius: 3px;
+  background: color-mix(in srgb, var(--accent-fill) 16%, transparent); font: 700 .95em var(--sans); color: var(--ink); cursor: pointer;
+}
+.term:hover, .term[aria-expanded="true"] { background: var(--accent-fill); color: var(--accent-ink); border-bottom-color: var(--accent-fill); }
+.term-box { border-left: 3px solid var(--accent-fill); background: var(--surface-2); border-radius: 0 8px 8px 0; padding: 10px 12px; display: grid; gap: 4px; font-size: 14px; }
+.term-box b { font-size: 14.5px; }
+.term-box .inwx { color: var(--dim); }
+.term-box a { font: 700 12px var(--mono); }
+
+.holds { width: 100%; border-collapse: collapse; font-size: 13px; }
+.holds caption { text-align: left; font: 700 10.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); padding-bottom: 6px; }
+.holds th, .holds td { padding: 5px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+.holds thead th { font: 700 11px var(--mono); color: var(--dim); }
+.holds thead th.g { color: var(--genesys); }
+.holds tbody th { font-weight: 400; }
+.holds tr:last-child th, .holds tr:last-child td { border-bottom: 0; }
+.st { font: 700 11.5px var(--mono); white-space: nowrap; }
+.st.h { color: var(--ink); }
+.st.n { color: var(--accent-ink); background: var(--accent-fill); padding: 1px 5px; border-radius: 3px; }
+.st.u, .st.o { color: var(--dim); text-decoration: line-through; }
+.st.o { text-decoration: none; font-style: italic; }
+.st.x { color: var(--ok); }
+.st.d { color: var(--faint); }
+.holds-wrap { overflow-x: auto; }
+
+/* ---------- gate simulator ---------- */
+.gate-grid { display: grid; gap: 18px; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); align-items: start; }
+@media (max-width: 820px) { .gate-grid { grid-template-columns: 1fr; } }
+.visitors { display: grid; gap: 8px; }
+.visitor { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 11px 14px; cursor: pointer; display: grid; gap: 2px; }
+.visitor:hover { border-color: var(--dim); }
+.visitor[aria-pressed="true"] { border-color: var(--accent-fill); box-shadow: 0 0 0 1px var(--accent-fill); }
+.visitor b { font-size: 15px; }
+.visitor span { font-size: 13px; color: var(--dim); }
+.gate { display: grid; gap: 14px; }
+.says { display: grid; gap: 8px; }
+.says dl { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; font-size: 14px; }
+.says dt { font: 700 11px var(--mono); letter-spacing: .08em; color: var(--dim); padding-top: 2px; }
+.says dd { margin: 0; overflow-wrap: anywhere; }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.check { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 12px; align-items: center; background: var(--surface-2); border-radius: 8px; padding: 10px 12px; }
+.light { width: 14px; height: 14px; border-radius: 50%; background: var(--faint); }
+.check[data-s="ok"] .light { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.check[data-s="fail"] .light { background: var(--bad); box-shadow: 0 0 8px var(--bad); }
+.check .cn { display: grid; }
+.check .cn b { font: 700 11.5px var(--mono); letter-spacing: .1em; }
+.check .cn span { font-size: 13.5px; color: var(--dim); }
+.check .res { font: 700 12px var(--mono); color: var(--faint); }
+.check[data-s="ok"] .res { color: var(--ok); }
+.check[data-s="fail"] .res { color: var(--bad); }
+.crt { background: var(--crt-bg); color: var(--crt-ink); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; border: 1px solid var(--line); }
+.verdict { font: 26px/1.05 var(--crt); letter-spacing: .02em; text-shadow: 0 0 8px rgba(61,255,122,.35); }
+.verdict.deny { color: #ff6b61; text-shadow: 0 0 8px rgba(255,107,97,.35); }
+.verdict-sub { font: 12px var(--mono); color: #b9d8c2; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
+.tile { border-radius: 6px; padding: 8px 10px; font: 12px var(--mono); border: 1px solid #22432d; color: #b9d8c2; display: grid; gap: 2px; }
+.tile b { font: 18px var(--crt); color: var(--crt-ink); font-weight: 400; }
+.tile.locked { border-color: #5a4a17; color: #c9a85a; background: repeating-linear-gradient(-45deg, rgba(255,176,0,.16) 0 6px, transparent 6px 12px); }
+.tile.locked b { color: #ffb000; }
+.tile.off { opacity: .35; }
+
+/* ---------- partner guidance ---------- */
+.ways { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.way { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.way .tag { justify-self: start; font: 700 10.5px var(--mono); letter-spacing: .1em; padding: 2px 7px; border-radius: 4px; }
+.tag.rec { background: var(--ok); color: var(--surface); }
+.tag.alt { background: var(--genesys); color: var(--surface); }
+.tag.no { background: var(--bad); color: var(--surface); }
+.tag.demo { background: var(--accent-fill); color: var(--accent-ink); }
+.way h3 { font: 700 17px/1.3 var(--sans); }
+.way p { font-size: 14.5px; }
+.way .fine { font-size: 13.5px; color: var(--dim); }
+.sub-h { font: 700 17px var(--sans); margin-top: 6px; }
+.checklist { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 80ch; }
+
+/* ---------- FAQ ---------- */
+.faq { display: grid; gap: 0; border-top: 1px solid var(--line); }
+.qa { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 6px 28px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+@media (max-width: 720px) { .qa { grid-template-columns: 1fr; } }
+.qa h3 { font: 700 15.5px/1.4 var(--sans); }
+.qa p { font-size: 14.5px; color: var(--ink); }
+
+/* ---------- glossary ---------- */
+.gloss-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.gloss-tools input { font: 14px var(--sans); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; width: min(340px, 100%); }
+.gloss-count { font: 12px var(--mono); color: var(--dim); }
+.gloss { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.entry { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; scroll-margin-top: 16px; }
+.entry.flash { border-color: var(--accent-fill); box-shadow: 0 0 0 2px var(--accent-fill); }
+.entry h3 { font: 700 15px var(--sans); }
+.entry .aka { font: 11px var(--mono); color: var(--dim); }
+.entry p { font-size: 14px; }
+.entry .inwx { font-size: 13px; color: var(--dim); }
+.entry .inwx b { font: 700 10.5px var(--mono); letter-spacing: .08em; color: var(--accent); }
+.gloss-empty { color: var(--dim); }
+footer { font: 12px var(--mono); color: var(--dim); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow"><b>WX-84</b> · Genesys Cloud partner demo · agent sign-in</div>
+    <h1>How a partner app knows which agent is looking</h1>
+    <p class="lede"><b>The partner app never sees the agent's password.</b> Genesys Cloud gives the agent a time-limited pass for that one app. The partner app asks Genesys whose pass it is, then checks its own list to decide what to show.</p>
+    <div class="summary">
+      <div class="sum"><span class="n">1</span><span class="who g">Genesys Cloud proves who it is</span><span class="what">The agent signed in this morning. Genesys vouches for them with a signed pass.</span><span class="term-name">Authentication</span></div>
+      <div class="sum"><span class="n">2</span><span class="who">The partner checks the proof</span><span class="what">The partner's server asks Genesys about the pass instead of trusting the browser.</span><span class="term-name">Token verification</span></div>
+      <div class="sum"><span class="n">3</span><span class="who">The partner decides what to show</span><span class="what">It looks the agent up in its own list and shows only what that person may see.</span><span class="term-name">Authorization</span></div>
+    </div>
+  </header>
+
+  <section>
+    <h2>Step by step: from password to the right screen</h2>
+    <p class="intro">Ten steps, most of them invisible to the agent. Click a row in the diagram, use the buttons or ← →. Highlighted words open their definition.</p>
+    <div class="toolbar">
+      <span class="ctl-label" id="lang-label">Explain in</span>
+      <div class="seg" role="group" aria-labelledby="lang-label">
+        <button type="button" id="lang-plain" data-lang="plain" aria-pressed="false">Plain words</button>
+        <button type="button" id="lang-both" data-lang="both" aria-pressed="true">Both</button>
+        <button type="button" id="lang-tech" data-lang="tech" aria-pressed="false">Technical terms</button>
+      </div>
+    </div>
+    <div class="seq-grid">
+      <div class="diagram">
+        <svg class="seq" id="seq" viewBox="0 0 700 540" role="img" aria-label="Sequence of the sign-in between four parties: the agent's browser, Genesys Cloud, the partner app and the partner's list. The password only travels from the browser to Genesys. Genesys returns a one-time voucher and then a pass, the browser hands the pass to the partner app, which checks it with Genesys and looks the agent up in its own list.">
+          <defs>
+            <marker id="mk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="mk" d="M0,1 L10,5 L0,9 z"/></marker>
+            <marker id="mk-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="mk-hot" d="M0,1 L10,5 L0,9 z"/></marker>
+          </defs>
+          <rect class="lane-box browser" x="25" y="14" width="150" height="50" rx="7"/>
+          <text class="lane-t" x="100" y="35" text-anchor="middle">Agent's browser</text>
+          <text class="lane-s" x="100" y="52" text-anchor="middle">Agent Workspace</text>
+          <rect class="lane-box g" x="215" y="14" width="150" height="50" rx="7"/>
+          <text class="lane-t g" x="290" y="35" text-anchor="middle">Genesys Cloud</text>
+          <text class="lane-s" x="290" y="52" text-anchor="middle">login + API</text>
+          <rect class="lane-box" x="405" y="14" width="150" height="50" rx="7"/>
+          <text class="lane-t" x="480" y="35" text-anchor="middle">Partner app</text>
+          <text class="lane-s" x="480" y="52" text-anchor="middle">WX-84 server</text>
+          <rect class="lane-box" x="568" y="14" width="114" height="50" rx="7"/>
+          <text class="lane-t" x="625" y="35" text-anchor="middle">Partner's list</text>
+          <text class="lane-s" x="625" y="52" text-anchor="middle">users.txt</text>
+          <line class="life" x1="100" y1="64" x2="100" y2="530"/>
+          <line class="life g" x1="290" y1="64" x2="290" y2="530"/>
+          <line class="life" x1="480" y1="64" x2="480" y2="530"/>
+          <line class="life" x1="625" y1="64" x2="625" y2="530"/>
+          <g id="rows"></g>
+        </svg>
+      </div>
+
+      <div class="card" aria-live="polite">
+        <div class="step-top">
+          <span class="eyebrow" id="step-count">Step 1 of 10</span>
+          <div class="pager">
+            <button type="button" id="prev">← Prev</button>
+            <button type="button" id="play" aria-pressed="false">Play</button>
+            <button type="button" id="next">Next →</button>
+          </div>
+        </div>
+        <h3 class="step-title" id="step-title"></h3>
+        <div class="say plain plain-only"><span class="k">In plain words</span><p id="step-plain"></p></div>
+        <div class="say tech tech-only"><span class="k">Technically</span><p id="step-tech"></p></div>
+        <div class="term-box" id="term-box" hidden></div>
+        <div class="holds-wrap">
+          <table class="holds">
+            <caption>Who holds what after this step</caption>
+            <thead><tr><th scope="col">Item</th><th scope="col" class="g">Genesys</th><th scope="col">Browser</th><th scope="col">Partner app</th></tr></thead>
+            <tbody id="holds"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>At the gate: try different agents</h2>
+    <p class="intro">The same three checks run for everyone who arrives with a pass. Pick an agent and watch what the partner app decides. Names and addresses are examples.</p>
+    <div class="gate-grid">
+      <div class="visitors" id="visitors" role="group" aria-label="Choose who signs in"></div>
+      <div class="card gate">
+        <div class="says">
+          <span class="eyebrow">Genesys answers (users/me and tokens/me)</span>
+          <dl id="says"></dl>
+        </div>
+        <ol class="checks" id="checks"></ol>
+        <div class="crt">
+          <div class="verdict" id="verdict"></div>
+          <div class="verdict-sub" id="verdict-sub"></div>
+          <div class="tiles" id="tiles"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Building the same into your own app</h2>
+    <p class="intro">WX-84 is one example. Any partner app inside Genesys Cloud has the same two jobs: find out reliably which agent is looking, then map that agent to its own users and permissions.</p>
+    <h3 class="sub-h">Job 1: find out who the agent is</h3>
+    <div class="ways">
+      <div class="way">
+        <span class="tag rec">RECOMMENDED · WHAT WX-84 DOES</span>
+        <h3>Sign in with Genesys Cloud</h3>
+        <p>OAuth Authorization Code with PKCE in the agent's browser, then verify the pass on your server with <code>users/me</code> and <code>tokens/me</code>.</p>
+        <p class="fine">Works for every Genesys customer without extra work for their IT department. The agent signs in once, to Genesys.</p>
+      </div>
+      <div class="way">
+        <span class="tag alt">ALTERNATIVE</span>
+        <h3>The customer's own single sign-on</h3>
+        <p>If your app already signs users in through the customer's identity provider (Microsoft Entra ID, Okta, Ping), the agent is recognized there. Genesys and your app trust the same source.</p>
+        <p class="fine">Needs the customer's IT to register your app. Map by the corporate e-mail or employee ID.</p>
+      </div>
+      <div class="way">
+        <span class="tag no">AVOID</span>
+        <h3>Anything the browser simply claims</h3>
+        <p>The agent's name in the widget URL, one shared login for all agents, or a single technical account for your app.</p>
+        <p class="fine">A URL can be edited by anyone. A technical account (Client Credentials) proves which app is calling, never which agent is looking.</p>
+      </div>
+    </div>
+    <h3 class="sub-h">Job 2: map the agent to your permissions</h3>
+    <div class="ways">
+      <div class="way">
+        <span class="tag demo">WX-84 DEMO</span>
+        <h3>By e-mail address</h3>
+        <p>Your list holds the agent's Genesys e-mail. Simple to read and to explain.</p>
+        <p class="fine">E-mail addresses can change or be reused. Exactly one match, otherwise deny.</p>
+      </div>
+      <div class="way">
+        <span class="tag rec">PRODUCTION</span>
+        <h3>By Genesys user ID</h3>
+        <p>Your list holds the permanent ID Genesys gives every user. It never changes, even when the e-mail does.</p>
+        <p class="fine">Store the ID at first sign-in or when an admin links the user.</p>
+      </div>
+      <div class="way">
+        <span class="tag alt">AT SCALE</span>
+        <h3>By Genesys group or role</h3>
+        <p>No list of people: "everyone in group Billing Tier 2 may see billing data". Your app reads the agent's groups with the same pass.</p>
+        <p class="fine">Needs one more read-only scope. Leavers lose access as soon as Genesys removes them from the group.</p>
+      </div>
+    </div>
+    <h3 class="sub-h">What a partner needs, per customer org</h3>
+    <ol class="checklist">
+      <li>An <b>OAuth client</b> with grant type Code (PKCE) and only read-only scopes.</li>
+      <li>An <b>Interaction Widget</b> that shows your app next to the interaction, limited to the right group and queues.</li>
+      <li>On your server: verify every new pass with Genesys, pin the customer's <b>organization ID</b>, and check the pass was issued to <b>your</b> OAuth client.</li>
+      <li>Your own user list or policy, checked on <b>every request</b>, with every decision logged.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Questions partners and executives ask</h2>
+    <div class="faq">
+      <div class="qa"><h3>Does the partner app ever see the agent's password?</h3><p>No. The password only goes to Genesys Cloud, or to the company's own sign-in behind it. The partner gets a time-limited pass and nothing else.</p></div>
+      <div class="qa"><h3>Does the agent have to sign in twice?</h3><p>No. The agent is already signed in to Genesys, so the pass is issued without a login page. Some browsers (Safari, private windows) block that hidden step; then the agent clicks once and a small window flashes.</p></div>
+      <div class="qa"><h3>What can the partner do with the pass?</h3><p>Only what its scopes allow, never more than the agent may do, and only for one hour. In WX-84: read the agent's profile and read the conversations this agent can see. Nothing can be changed.</p></div>
+      <div class="qa"><h3>An agent leaves the company. What happens?</h3><p>Genesys disables the account, so no new pass is issued. A pass already issued expires within the hour. The partner's own list should be cleaned too; mapping by Genesys group makes that automatic.</p></div>
+      <div class="qa"><h3>Who decides what the agent sees in the partner app?</h3><p>The partner, with its own list or policy. Genesys only vouches for who the agent is. Customer data read from Genesys stays under Genesys's rules, because the partner reads it with the agent's own pass.</p></div>
+      <div class="qa"><h3>Which personal data does the partner process?</h3><p>The agent's name, e-mail and Genesys user ID, plus whatever customer data it reads with the pass. WX-84 shows the customer's last name but does not store or log it.</p></div>
+      <div class="qa"><h3>Why not just put the agent's name in the widget URL?</h3><p>Anyone can edit a URL and type someone else's name. A pass issued by Genesys and checked by the partner's server cannot be invented.</p></div>
+    </div>
+  </section>
+
+  <section id="glossary">
+    <h2>Glossary</h2>
+    <p class="intro">Every technical term on this page, in plain words, with where it shows up in WX-84.</p>
+    <div class="gloss-tools">
+      <input type="search" id="gloss-filter" placeholder="Filter terms, e.g. token" aria-label="Filter glossary terms">
+      <span class="gloss-count" id="gloss-count"></span>
+    </div>
+    <div class="gloss" id="gloss"></div>
+    <p class="gloss-empty" id="gloss-empty" hidden>No term matches. Try a shorter word.</p>
+  </section>
+
+  <footer>Built from the WX-84 repository (GC-3rdParty-AccessMgmtExample), November 2026. Example people and companies are fictional.</footer>
+</div>
+
+<script>
+(() => {
+  // ------------------------------------------------------------ glossary ---
+  const TERMS = {
+    'authentication': { name: 'Authentication', def: 'Proving who someone is.', wx: 'Genesys Cloud does this when the agent signs in.' },
+    'authorization': { name: 'Authorization', def: 'Deciding what a known person may see or do.', wx: 'WX-84 does this with its own list, users.txt.' },
+    'identity-provider': { name: 'Identity provider', aka: 'IdP', def: 'The system that knows the users and checks their sign-in.', wx: 'Genesys Cloud, or the company’s own sign-in behind it.' },
+    'sso': { name: 'Single sign-on', aka: 'SSO', def: 'Sign in once and use several apps without signing in again.', wx: 'The agent’s Genesys sign-in also opens WX-84.' },
+    'login-cookie': { name: 'Login cookie', def: 'A small note the browser keeps so a website recognizes you on your next visit.', wx: 'The Genesys cookie lets the hidden sign-in get a pass without showing a login page.' },
+    'oauth': { name: 'OAuth 2.0', def: 'The standard rulebook for letting an app act for a user without ever seeing the user’s password.', wx: 'WX-84 uses the Authorization Code flow with PKCE.' },
+    'oauth-client': { name: 'OAuth client', def: 'An app registered in Genesys Cloud so it may ask for passes. It lists where passes may be delivered and what they may do.', wx: '“WX-84 Agent Console (PKCE)”, created by setup.js.' },
+    'client-id': { name: 'Client ID', def: 'The public ID of a registered app. Not a secret.', wx: 'Sent with every pass request; WX-84 also checks it on every pass it receives.' },
+    'client-secret': { name: 'Client secret', def: 'A password for an app. Only apps that run on a server can keep one safe.', wx: 'The agent sign-in uses none. Only the setup script has a secret, kept in the macOS keychain.' },
+    'public-client': { name: 'Public client', def: 'An app that cannot keep a secret, such as a web page. It proves itself with PKCE instead.', wx: 'The WX-84 console in the agent’s browser.' },
+    'authorization-code': { name: 'Authorization code', aka: 'the voucher', def: 'A one-time voucher, valid for a very short time, that can be traded for a pass.', wx: 'Delivered by Genesys to auth/popup.html and traded right away.' },
+    'redirect-uri': { name: 'Redirect URI', def: 'The only address Genesys will send the voucher to. Registered with the OAuth client, so a stranger’s site cannot receive it.', wx: 'https://…/auth/popup.html on the WX-84 server.' },
+    'pkce': { name: 'PKCE', aka: 'Proof Key for Code Exchange, said “pixie”', def: 'The app makes a secret, shows Genesys only its fingerprint, and must present the secret when trading the voucher. A stolen voucher is useless without it.', wx: 'The hidden sign-in frame makes a new secret for every sign-in.' },
+    'code-verifier': { name: 'Code verifier', aka: 'the secret stub', def: 'The secret half of PKCE. It stays in the agent’s browser until the voucher is traded.', wx: '48 random bytes, kept only for this one sign-in.' },
+    'code-challenge': { name: 'Code challenge', aka: 'the fingerprint', def: 'A fingerprint (SHA-256 hash) of the code verifier. Safe to send, because the secret cannot be rebuilt from it.', wx: 'Sent with the first request to Genesys.' },
+    'state': { name: 'State parameter', def: 'A random value the page sends with its request and expects back, so it only accepts answers to its own request.', wx: 'A mismatch shows “STATE MISMATCH - SIGN-IN REJECTED”.' },
+    'access-token': { name: 'Access token', aka: 'the pass', def: 'Proof issued by Genesys: this user, this app, these rights, until this time.', wx: 'Valid for one hour; kept only on the WX-84 server.' },
+    'bearer-token': { name: 'Bearer token', def: 'A token that works for whoever holds it, like cash. It must travel only over HTTPS and be kept out of reach.', wx: 'That is why WX-84 keeps the Genesys token on its server.' },
+    'scope': { name: 'Scope', def: 'What a token may be used for. A token can never do more than the agent’s own Genesys roles allow.', wx: 'users:readonly and conversations:readonly. Read only.' },
+    'iframe': { name: 'Iframe', def: 'A window that shows one website inside another.', wx: 'Agent Workspace shows the WX-84 console in an iframe.' },
+    'interaction-widget': { name: 'Interaction Widget', def: 'Genesys Cloud’s name for a partner window shown next to an interaction in the agent desktop.', wx: '“WX-84 Weather Command Unit”, behind the cube icon.' },
+    'popup': { name: 'Popup fallback', def: 'A small extra window used when the browser blocks the hidden sign-in, for example Safari or private windows that block third-party cookies.', wx: 'The “Engage link” button.' },
+    'token-verification': { name: 'Token verification', def: 'The partner’s server asks Genesys about the pass instead of trusting what the browser says.', wx: 'GET /api/v2/users/me and GET /api/v2/tokens/me.' },
+    'api': { name: 'API', aka: 'Application Programming Interface', def: 'The way programs ask each other questions and get answers.', wx: 'The Genesys Cloud Platform API at api.usw2.pure.cloud.' },
+    'organization-id': { name: 'Organization ID', def: 'The ID of one Genesys Cloud customer account (an “org”). A partner accepts only the orgs it serves.', wx: 'Pinned in config/config.json.' },
+    'user-id': { name: 'Genesys user ID', def: 'The permanent ID Genesys gives a person. It stays the same when the e-mail changes.', wx: 'Returned by users/me; the recommended key for production mapping.' },
+    'identity-mapping': { name: 'Identity mapping', def: 'Linking the verified Genesys identity to the partner’s own user record.', wx: 'Exact e-mail match to one line in users.txt.' },
+    'permissions': { name: 'Permissions', def: 'What a mapped user may see or do in the partner app.', wx: 'The stations column in users.txt, read on every request.' },
+    'handoff-id': { name: 'Handoff ID', def: 'A one-time pickup number, so the finished sign-in reaches the right console window.', wx: 'Valid for 2 minutes, usable once.' },
+    'session-ticket': { name: 'Session ticket', def: 'The partner app’s own pass for its pages, issued after the Genesys pass was verified.', wx: 'Valid for 12 hours; the console sends it with every request.' },
+    'bff': { name: 'Backend for frontend', def: 'A pattern where tokens stay on the partner’s server and the browser only holds the partner’s own ticket.', wx: 'The Genesys token never sits in the console’s code.' },
+    'audit-log': { name: 'Audit log', def: 'A record of who did what, and when, including refused attempts.', wx: 'The flight recorder (data/flight-recorder.log).' },
+    'client-credentials': { name: 'Client Credentials', def: 'An OAuth flow where an app signs in as itself, without a user. Good for scripts; it cannot tell you which agent is looking.', wx: 'Used only by the setup script (“WX-84 Setup”).' },
+  };
+
+  // --------------------------------------------------------------- steps ---
+  const LANE = { A: 100, G: 290, P: 480, L: 625 };
+  const T = (id, label) => `[[${id}|${label}]]`;
+  const STEPS = [
+    { from: 'A', to: 'G', lbl: 'password (this morning)', pw: true,
+      title: 'The agent signs in to Genesys Cloud',
+      plain: 'This morning the agent checked in at the airline desk and showed their passport. Genesys Cloud now remembers them for the day. This is the only time the password is used, and it only goes to Genesys.',
+      tech: `The agent ${T('authentication', 'authenticates')} at the Genesys Cloud login, the ${T('identity-provider', 'identity provider')}. The browser keeps a ${T('login-cookie', 'login cookie')} for the ${T('sso', 'single sign-on')} session. If the company uses its own sign-in (Entra ID, Okta), Genesys asks that system instead.` },
+    { from: 'A', to: 'P', lbl: 'open partner page',
+      title: 'A chat opens the partner window',
+      plain: 'A chat arrives. Next to it, a window to the partner app opens. The window’s address says which conversation it is about, but not who is looking.',
+      tech: `Agent Workspace loads the ${T('interaction-widget', 'Interaction Widget')}, an ${T('iframe', 'iframe')}, from the partner’s URL with the conversation ID filled in. A URL is no proof of identity: anyone can type one.` },
+    { from: 'A', to: 'G', lbl: 'ask for a pass + fingerprint',
+      title: 'The partner page asks Genesys for a pass',
+      plain: 'The partner page sends the agent back to the airline desk: “Please issue a boarding pass for flight WX-84.” It keeps a secret stub in its pocket and only shows a fingerprint of it.',
+      tech: `A request to /oauth/authorize with the ${T('client-id', 'client ID')} of the ${T('oauth-client', 'OAuth client')}, the ${T('redirect-uri', 'redirect URI')}, a ${T('state', 'state')} value and the ${T('code-challenge', 'code challenge')}. The ${T('code-verifier', 'code verifier')} stays in the page. In WX-84 this runs in a hidden frame.` },
+    { from: 'G', to: 'A', lbl: 'one-time voucher',
+      title: 'Genesys recognizes the agent',
+      plain: 'The desk recognizes the agent from this morning, so no passport is needed. It hands out a one-time voucher, and only to the gate address registered for WX-84.',
+      tech: `Thanks to the ${T('login-cookie', 'login cookie')}, Genesys skips its login page and sends an ${T('authorization-code', 'authorization code')} to the ${T('redirect-uri', 'redirect URI')}. Signed-out agents, Safari and private windows get the ${T('popup', 'popup fallback')}.` },
+    { from: 'A', to: 'G', lbl: 'voucher + secret stub',
+      title: 'Voucher and stub are traded',
+      plain: 'The page brings the voucher back, together with the secret stub. The desk checks that the stub matches the fingerprint from before. A stolen voucher on its own is worthless.',
+      tech: `A request to /oauth/token with the ${T('authorization-code', 'authorization code')} and the ${T('code-verifier', 'code verifier')}: this is ${T('pkce', 'PKCE')}. No ${T('client-secret', 'client secret')} is needed, because the console is a ${T('public-client', 'public client')}.` },
+    { from: 'G', to: 'A', lbl: 'boarding pass (1 hour)',
+      title: 'Genesys issues the boarding pass',
+      plain: 'The agent now holds a boarding pass: valid for one hour, for WX-84 only, and it only allows reading. It never allows more than the agent may do anyway.',
+      tech: `Genesys returns an ${T('access-token', 'access token')}, a ${T('bearer-token', 'bearer token')} valid for 3,600 seconds and limited by its ${T('scope', 'scopes')}: users:readonly and conversations:readonly.` },
+    { from: 'A', to: 'P', lbl: 'boarding pass',
+      title: 'The pass goes to the partner app',
+      plain: 'The page hands the boarding pass to the partner’s server, with a pickup number so the answer comes back to the right window. Still no password anywhere.',
+      tech: `POST /api/session/genesys with the token and a one-time ${T('handoff-id', 'handoff ID')}. From here on, the token lives only on the server: ${T('bff', 'backend for frontend')}.` },
+    { from: 'P', to: 'G', lbl: 'whose pass? which app? which org?', both: true,
+      title: 'The partner checks the pass with Genesys',
+      plain: 'The gate scanner calls the airline: “Is this pass genuine? Whose is it? For which flight? From which airline?” Genesys answers. A fake or expired pass is refused here.',
+      tech: `${T('token-verification', 'Token verification')} through the ${T('api', 'API')}: users/me returns name, e-mail, ${T('user-id', 'user ID')} and ${T('organization-id', 'organization ID')}; tokens/me returns the ${T('oauth-client', 'OAuth client')} the token was issued to. An invalid token gets HTTP 401.` },
+    { from: 'P', to: 'L', lbl: 'look up e-mail',
+      title: 'The partner looks up its own list',
+      plain: 'Right airline and right flight? Then the gate checks its own passenger list. maya.ortiz@… is user “menlo”, and her ticket class covers the Menlo Park station. Not on the list: no boarding.',
+      tech: `${T('identity-mapping', 'Identity mapping')}: verified e-mail (in production the Genesys user ID) to one local user in users.txt, then that user’s ${T('permissions', 'permissions')}. This is WX-84’s own ${T('authorization', 'authorization')}. No match: 403 ACCESS DENIED.` },
+    { from: 'P', to: 'A', lbl: 'own ticket + right content',
+      title: 'The agent sees the right content',
+      plain: 'The gate hands out its own wristband for the day and shows exactly what this agent’s ticket class allows. Every later click is checked against the list again, so a change applies within seconds.',
+      tech: `WX-84 issues its own ${T('session-ticket', 'session ticket')} (12 hours). Every request is authorized against users.txt again, and each decision goes to the ${T('audit-log', 'audit log')}, the flight recorder.` },
+  ];
+  // Who holds what after each step: h has it, n receives it now, u used up, o passed on, x never, . no
+  const HOLDS = [
+    { item: 'Password', term: 'authentication', g: 'hhhhhhhhhh', b: 'n.........', p: 'xxxxxxxxxx' },
+    { item: 'Login cookie', term: 'login-cookie', g: 'nhhhhhhhhh', b: 'nhhhhhhhhh', p: 'xxxxxxxxxx' },
+    { item: 'Secret stub (PKCE)', term: 'code-verifier', g: '....n.....', b: '..nhu.....', p: 'xxxxxxxxxx' },
+    { item: 'Voucher (code)', term: 'authorization-code', g: '...nu.....', b: '...nu.....', p: 'xxxxxxxxxx' },
+    { item: 'Pass (token)', term: 'access-token', g: '.....nhhhh', b: '.....no...', p: '......nhhh' },
+    { item: 'Verified identity', term: 'token-verification', g: 'hhhhhhhhhh', b: '.........n', p: '.......nhh' },
+    { item: 'Partner ticket', term: 'session-ticket', g: 'xxxxxxxxxx', b: '.........n', p: '.........n' },
+  ];
+  const HOLD_TEXT = { h: 'has it', n: 'receives', u: 'used up', o: 'passes on', x: 'never', '.': '–' };
+  const HOLD_CLASS = { h: 'h', n: 'n', u: 'u', o: 'o', x: 'x', '.': 'd' };
+
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const $ = (s) => document.querySelector(s);
+  const state = { step: 0, term: null, playing: null };
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function el(name, attrs, parent) {
+    const node = document.createElementNS(SVGNS, name);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    if (parent) parent.append(node);
+    return node;
+  }
+
+  function buildRows() {
+    const rows = $('#rows');
+    STEPS.forEach((s, i) => {
+      const y = 100 + i * 46;
+      const xa = LANE[s.from], xb = LANE[s.to];
+      const dir = Math.sign(xb - xa);
+      const x1 = xa + 6 * dir, x2 = xb - 6 * dir;
+      const g = el('g', { class: `row${s.both ? ' both' : ''}${s.pw ? ' pw' : ''}`, 'data-i': i }, rows);
+      el('rect', { class: 'hit', x: 0, y: y - 22, width: 700, height: 44, rx: 4 }, g);
+      el('line', { class: 'ln', x1, y1: y, x2, y2: y }, g);
+      const t = el('text', { class: 'lbl', x: (x1 + x2) / 2, y: y - 8, 'text-anchor': 'middle' }, g);
+      t.textContent = s.lbl;
+      const pk = el('circle', { class: 'packet', cx: x1, cy: y, r: 5 }, g);
+      pk.style.setProperty('--dx', `${x2 - x1}px`);
+      const num = el('g', { class: 'num' }, g);
+      el('circle', { cx: 14, cy: y, r: 10 }, num);
+      const nt = el('text', { x: 14, y: y + 4, 'text-anchor': 'middle' }, num);
+      nt.textContent = String(i + 1);
+      g.addEventListener('click', () => { stopPlay(); go(i); });
+    });
+  }
+
+  function withTerms(text) {
+    return text.replace(/\[\[([a-z-]+)\|([^\]]+)\]\]/g, (m, id, label) =>
+      `<button type="button" class="term" data-term="${id}" aria-expanded="false">${label}</button>`);
+  }
+
+  function showTerm(id) {
+    const box = $('#term-box');
+    if (!id || !TERMS[id]) { box.hidden = true; state.term = null; return; }
+    const t = TERMS[id];
+    state.term = id;
+    box.innerHTML = '';
+    const b = document.createElement('b'); b.textContent = t.name + (t.aka ? ` (${t.aka})` : '');
+    const d = document.createElement('span'); d.textContent = t.def;
+    const w = document.createElement('span'); w.className = 'inwx'; w.textContent = `In WX-84: ${t.wx}`;
+    const a = document.createElement('a'); a.href = `#g-${id}`; a.textContent = 'Open in glossary ↓';
+    a.addEventListener('click', (ev) => { ev.preventDefault(); flashEntry(id); });
+    box.append(b, d, w, a);
+    box.hidden = false;
+    document.querySelectorAll('#step-tech .term').forEach((btn) => btn.setAttribute('aria-expanded', String(btn.dataset.term === id)));
+  }
+
+  function go(i) {
+    state.step = Math.max(0, Math.min(STEPS.length - 1, i));
+    const s = STEPS[state.step];
+    document.querySelectorAll('#rows .row').forEach((g) => {
+      const n = Number(g.dataset.i);
+      g.classList.toggle('cur', n === state.step);
+      g.classList.toggle('future', n > state.step);
+    });
+    $('#step-count').textContent = `Step ${state.step + 1} of ${STEPS.length}`;
+    $('#step-title').textContent = s.title;
+    $('#step-plain').textContent = s.plain;
+    $('#step-tech').innerHTML = withTerms(s.tech);
+    $('#step-tech').querySelectorAll('.term').forEach((btn) => btn.addEventListener('click', () => showTerm(state.term === btn.dataset.term ? null : btn.dataset.term)));
+    showTerm(null);
+    const body = $('#holds');
+    body.replaceChildren();
+    HOLDS.forEach((h) => {
+      const tr = document.createElement('tr');
+      const th = document.createElement('th'); th.scope = 'row'; th.textContent = h.item; tr.append(th);
+      for (const who of ['g', 'b', 'p']) {
+        const code = h[who][state.step];
+        const td = document.createElement('td');
+        const sp = document.createElement('span'); sp.className = `st ${HOLD_CLASS[code]}`; sp.textContent = HOLD_TEXT[code];
+        td.append(sp); tr.append(td);
+      }
+      body.append(tr);
+    });
+    $('#prev').disabled = state.step === 0;
+    $('#next').disabled = state.step === STEPS.length - 1;
+  }
+
+  function stopPlay() {
+    if (state.playing) { clearInterval(state.playing); state.playing = null; }
+    $('#play').setAttribute('aria-pressed', 'false');
+    $('#play').textContent = 'Play';
+  }
+  $('#play').addEventListener('click', () => {
+    if (state.playing) { stopPlay(); return; }
+    if (state.step === STEPS.length - 1) go(0);
+    $('#play').setAttribute('aria-pressed', 'true');
+    $('#play').textContent = 'Pause';
+    state.playing = setInterval(() => {
+      if (state.step >= STEPS.length - 1) { stopPlay(); return; }
+      go(state.step + 1);
+    }, 4200);
+  });
+  $('#prev').addEventListener('click', () => { stopPlay(); go(state.step - 1); });
+  $('#next').addEventListener('click', () => { stopPlay(); go(state.step + 1); });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.altKey || ev.ctrlKey || ev.metaKey) return;
+    if (ev.target instanceof HTMLInputElement) return;
+    if (ev.key === 'ArrowRight') { stopPlay(); go(state.step + 1); }
+    if (ev.key === 'ArrowLeft') { stopPlay(); go(state.step - 1); }
+  });
+
+  // language toggle
+  function setLang(lang) {
+    document.body.dataset.lang = lang;
+    document.querySelectorAll('button[data-lang]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  }
+  document.querySelectorAll('button[data-lang]').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
+
+  // ----------------------------------------------------------- gate sim ---
+  const ORG = 'Acme Air (the org this app serves)';
+  const STATIONS = [
+    { id: 'dortmund', name: 'Dortmund HQ', icao: 'EDLW' },
+    { id: 'indianapolis', name: 'Indianapolis', icao: 'KIND' },
+    { id: 'menlo-park', name: 'Menlo Park', icao: 'KPAO' },
+    { id: 'melbourne', name: 'Melbourne', icao: 'YMML' },
+  ];
+  const CHECKS = [
+    { k: 'ORGANIZATION', q: 'Is the pass from our Genesys org?', fail: '403 · different organization' },
+    { k: 'APP', q: 'Was the pass issued to WX-84?', fail: '403 · not issued to WX-84' },
+    { k: 'PERSON', q: 'Is this e-mail on our list, exactly once?', fail: '403 · ACCESS DENIED' },
+  ];
+  const VISITORS = [
+    { id: 'menlo', label: 'Menlo Park agent', sub: 'On the list for one station', name: 'Maya Ortiz', email: 'maya.ortiz@example.com', org: ORG, app: 'WX-84 Agent Console (PKCE)', checks: [1, 1, 1], user: 'menlo', role: 'agent', stations: ['menlo-park'] },
+    { id: 'admin', label: 'Supervisor', sub: 'On the list as admin', name: 'Sam Lee', email: 'sam.lee@example.com', org: ORG, app: 'WX-84 Agent Console (PKCE)', checks: [1, 1, 1], user: 'admin', role: 'admin', stations: ['dortmund', 'indianapolis', 'menlo-park', 'melbourne'] },
+    { id: 'newhire', label: 'New hire', sub: 'Genesys user, not on the list yet', name: 'Noor Haddad', email: 'noor.haddad@example.com', org: ORG, app: 'WX-84 Agent Console (PKCE)', checks: [1, 1, 0], reason: 'No WX-84 account for noor.haddad@example.com' },
+    { id: 'otherapp', label: 'Pass from another app', sub: 'Right org, wrong app', name: 'Maya Ortiz', email: 'maya.ortiz@example.com', org: ORG, app: 'Acme Reporting Tool', checks: [1, 0, -1], reason: 'Pass was not issued to the WX-84 OAuth client' },
+    { id: 'otherorg', label: 'Agent of another company', sub: 'Different Genesys customer', name: 'Chris Park', email: 'chris.park@example.org', org: 'Globex (another Genesys customer)', app: 'an app in the Globex org', checks: [0, -1, -1], reason: 'Pass belongs to a different Genesys Cloud organization' },
+  ];
+  const sim = { timers: [], current: null };
+
+  function renderVisitors() {
+    const box = $('#visitors');
+    VISITORS.forEach((v) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'visitor'; b.id = `visitor-${v.id}`;
+      b.setAttribute('aria-pressed', 'false');
+      const t = document.createElement('b'); t.textContent = v.label;
+      const s = document.createElement('span'); s.textContent = v.sub;
+      b.append(t, s);
+      b.addEventListener('click', () => runGate(v));
+      box.append(b);
+    });
+  }
+
+  function runGate(v, animate = true) {
+    sim.timers.forEach(clearTimeout); sim.timers = [];
+    const later = (fn, ms) => { if (ms) sim.timers.push(setTimeout(fn, ms)); else fn(); };
+    sim.current = v.id;
+    document.querySelectorAll('.visitor').forEach((b) => b.setAttribute('aria-pressed', String(b.id === `visitor-${v.id}`)));
+    const dl = $('#says'); dl.replaceChildren();
+    for (const [k, val] of [['NAME', v.name], ['E-MAIL', v.email], ['ORG', v.org], ['PASS FOR', v.app]]) {
+      const dt = document.createElement('dt'); dt.textContent = k;
+      const dd = document.createElement('dd'); dd.textContent = val;
+      dl.append(dt, dd);
+    }
+    const list = $('#checks'); list.replaceChildren();
+    const items = CHECKS.map((c) => {
+      const li = document.createElement('li'); li.className = 'check'; li.dataset.s = 'wait';
+      li.innerHTML = '<span class="light"></span><span class="cn"><b></b><span></span></span><span class="res">…</span>';
+      li.querySelector('b').textContent = c.k;
+      li.querySelector('.cn span').textContent = c.q;
+      list.append(li);
+      return li;
+    });
+    const verdict = $('#verdict'), sub = $('#verdict-sub'), tiles = $('#tiles');
+    verdict.textContent = 'CHECKING PASS…'; verdict.className = 'verdict'; sub.textContent = '';
+    renderTiles(null);
+    const delay = (reduce || !animate) ? 0 : 420;
+    v.checks.forEach((r, i) => {
+      later(() => {
+        const li = items[i];
+        if (r === 1) { li.dataset.s = 'ok'; li.querySelector('.res').textContent = 'OK'; }
+        else if (r === 0) { li.dataset.s = 'fail'; li.querySelector('.res').textContent = CHECKS[i].fail; }
+        else { li.dataset.s = 'skip'; li.querySelector('.res').textContent = 'not checked'; }
+      }, delay * (i + 1));
+    });
+    later(() => {
+      const granted = v.checks.every((r) => r === 1);
+      if (granted) {
+        verdict.textContent = `ACCESS GRANTED · USER ${v.user.toUpperCase()}`;
+        sub.textContent = v.role === 'admin' ? 'Role admin: every station, and may change permissions.' : 'Role agent: only the stations on this user’s line in users.txt.';
+        renderTiles(v.stations);
+      } else {
+        verdict.textContent = 'ACCESS DENIED';
+        verdict.className = 'verdict deny';
+        sub.textContent = `${v.reason}. Logged in the flight recorder.`;
+        renderTiles([], true);
+      }
+    }, delay * 4);
+  }
+
+  function renderTiles(open, denied) {
+    const tiles = $('#tiles'); tiles.replaceChildren();
+    STATIONS.forEach((s) => {
+      const d = document.createElement('div');
+      const isOpen = Array.isArray(open) && open.includes(s.id);
+      d.className = `tile${open === null ? ' off' : isOpen ? '' : ' locked'}`;
+      const b = document.createElement('b'); b.textContent = s.icao;
+      const n = document.createElement('span'); n.textContent = s.name;
+      const st = document.createElement('span'); st.textContent = open === null ? 'waiting' : isOpen ? 'weather shown' : 'locked';
+      d.append(b, n, st);
+      tiles.append(d);
+    });
+  }
+
+  // ----------------------------------------------------------- glossary ---
+  function renderGlossary() {
+    const box = $('#gloss');
+    Object.entries(TERMS).sort((a, b) => a[1].name.localeCompare(b[1].name)).forEach(([id, t]) => {
+      const div = document.createElement('div'); div.className = 'entry'; div.id = `g-${id}`;
+      div.dataset.text = `${t.name} ${t.aka || ''} ${t.def} ${t.wx}`.toLowerCase();
+      const h = document.createElement('h3'); h.textContent = t.name;
+      div.append(h);
+      if (t.aka) { const a = document.createElement('span'); a.className = 'aka'; a.textContent = t.aka; div.append(a); }
+      const p = document.createElement('p'); p.textContent = t.def;
+      const w = document.createElement('p'); w.className = 'inwx'; w.innerHTML = '<b>IN WX-84</b> '; w.append(document.createTextNode(t.wx));
+      div.append(p, w);
+      box.append(div);
+    });
+    updateCount();
+  }
+  function updateCount() {
+    const all = document.querySelectorAll('.entry');
+    const shown = [...all].filter((e) => !e.hidden).length;
+    $('#gloss-count').textContent = `${shown} of ${all.length} terms`;
+    $('#gloss-empty').hidden = shown > 0;
+  }
+  $('#gloss-filter').addEventListener('input', (ev) => {
+    const q = ev.target.value.trim().toLowerCase();
+    document.querySelectorAll('.entry').forEach((e) => { e.hidden = q !== '' && !e.dataset.text.includes(q); });
+    updateCount();
+  });
+  function flashEntry(id) {
+    const f = $('#gloss-filter');
+    if (f.value) { f.value = ''; document.querySelectorAll('.entry').forEach((e) => { e.hidden = false; }); updateCount(); }
+    const e = document.getElementById(`g-${id}`);
+    if (!e) return;
+    e.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+    e.classList.add('flash');
+    setTimeout(() => e.classList.remove('flash'), 1800);
+  }
+
+  setLang('both');
+  buildRows();
+  go(0);
+  renderVisitors();
+  runGate(VISITORS[0], false);
+  renderGlossary();
+})();
+</script>
