@@ -278,21 +278,15 @@ function moduleTemplate(station) {
       <div><dt>HI / LO</dt><dd data-f="hilo">--</dd></div>
       <div><dt>SUNRISE</dt><dd data-f="sunrise">--</dd></div>
       <div><dt>SUNSET</dt><dd data-f="sunset">--</dd></div>
-    </dl>
-    <div class="lock-plate" aria-hidden="true">
-      <div class="plate-inner">
-        <div class="bulb"></div>
-        <div class="denied">ACCESS DENIED</div>
-        <div class="why" data-f="why"></div>
-      </div>
-    </div>`;
+    </dl>`;
 }
 
 function buildModules() {
   const grid = $('#stations');
   grid.innerHTML = '';
   state.modules.clear();
-  // Requested station first, then the ones this operator is cleared for, then locked ones.
+  // Requested station first, then the others. Modules for stations without
+  // clearance exist but stay hidden, so a grant can show them without a rebuild.
   const rank = (s) => (s.id === state.requestedStation ? 0 : state.me.stations.includes(s.id) ? 1 : 2);
   const ordered = [...state.stations].sort((a, b) => rank(a) - rank(b));
   for (const station of ordered) {
@@ -316,22 +310,27 @@ function buildModules() {
   applyClearance();
 }
 
+// Show only the stations this operator is cleared for; the others are hidden.
+// Cosmetic only: the server never sends weather for a station without clearance.
 function applyClearance() {
   const allowed = new Set(state.me.stations);
+  let shown = 0;
   for (const [id, mod] of state.modules) {
     const cleared = allowed.has(id);
     const previous = mod.el.dataset.state;
-    if (cleared && previous === 'locked') mod.el.dataset.state = 'loading';
+    mod.el.classList.toggle('hidden', !cleared);
     if (!cleared) {
-      mod.el.dataset.state = 'locked';
-      mod.el.querySelector('[data-f="why"]').textContent =
-        `Operator ${state.me.username} not cleared for ${mod.station.name}`;
-      clearReadings(mod);
-    } else if (!previous) {
-      mod.el.dataset.state = 'loading';
+      if (previous !== 'hidden') clearReadings(mod); // no stale data when it comes back
+      mod.el.dataset.state = 'hidden';
+    } else {
+      shown += 1;
+      if (!previous || previous === 'hidden') mod.el.dataset.state = 'loading';
     }
     mod.el.classList.toggle('focus', id === state.requestedStation);
   }
+  $('#stations').dataset.count = String(shown);
+  $('#no-stations').classList.toggle('hidden', shown > 0);
+  $('#no-stations-why').textContent = `Operator ${state.me.username} is not cleared for any station. A WX-84 admin can grant one.`;
 }
 
 const set = (mod, field, text) => { mod.el.querySelector(`[data-f="${field}"]`).textContent = text; };
@@ -456,7 +455,7 @@ async function verifyRequestedStation() {
     setVerdict('green', 'CLEARED');
   } catch (err) {
     if (!(err instanceof ApiError) || err.status !== 403) throw err;
-    $('#incoming-text').innerHTML = `${text}<small>operator ${escapeHtml(state.me.username)} has no clearance - transfer or escalate</small>`;
+    $('#incoming-text').innerHTML = `${text}<small>operator ${escapeHtml(state.me.username)} is not cleared for this station, so it stays hidden - transfer to a cleared colleague</small>`;
     setVerdict('red', 'DENIED');
     caution(`ACCESS DENIED FOR REQUESTED STATION ${station.name.toUpperCase()}`);
   }

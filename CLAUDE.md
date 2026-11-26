@@ -1,6 +1,6 @@
 # GC-3rdParty-AccessMgmtExample (WX-84)
 
-Public demo for Genesys Cloud partners: a third-party tool with its own access management (plain-text permission file), embedded in the Genesys Cloud agent desktop as an Interaction Widget. Agent identity comes from Genesys Cloud (OAuth PKCE popup, verified server-side). Customer page starts Web Messaging; an Architect flow routes by the custom attribute `location`.
+Public demo for Genesys Cloud partners: a third-party tool with its own access management (plain-text permission file), embedded in the Genesys Cloud agent desktop as an Interaction Widget. Agent identity comes from Genesys Cloud (OAuth PKCE popup, verified server-side). Customer page starts Web Messaging with the custom attribute `location` (context, not routing); an Architect flow asks the last name and sends every chat to one queue, `WX-84 Weather Desk`, whose members are the group `WX-84 Agents`. The console shows only the stations the agent is cleared for and hides the rest.
 
 **Language:** all code, UI, comments and docs in English (public repo). Conversation with Juergen in German is fine.
 
@@ -14,7 +14,7 @@ Public demo for Genesys Cloud partners: a third-party tool with its own access m
 
 * Region **usw2** (`apps.usw2.pure.cloud`, Messenger env `prod-usw2`).
 * Setup credentials: macOS keychain, service `wx84-genesys-setup`, accounts `client-id` / `client-secret`. Never in files.
-* Object names all start with `WX-84` (queues, flow, group, Messenger, OAuth client, integration). See `genesys/setup.js` → `NAMES`.
+* Object names all start with `WX-84` (queue, flows, group, Messenger, OAuth client, integration). See `genesys/setup.js` → `NAMES`.
 
 ## Local-only files (git-ignored, never commit)
 

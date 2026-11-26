@@ -2,7 +2,7 @@
 
 **A Genesys Cloud demo: a third-party tool with its own access management, embedded in the agent desktop. The agent's _verified_ Genesys Cloud identity decides what the tool shows.**
 
-![Agent "menlo" sees only the Menlo Park station; the other stations are locked](docs/img/agent-menlo.jpg)
+![Agent "menlo" sees only the Menlo Park station; the stations without clearance are hidden](docs/img/agent-menlo.jpg)
 
 Many contact-center tools have their own users and permissions. Embed such a tool in Genesys Cloud and you face a question: *how does the tool know who the agent is, and how does it stop an agent from seeing data they are not cleared for?* This repository answers that question with a small, complete and deliberately simple example:
 
@@ -11,9 +11,9 @@ Many contact-center tools have their own users and permissions. Embed such a too
 | **WX-84 console** (`public/`, `server/`) | A local web tool styled like a 1980s cockpit. It shows live weather for four stations: Dortmund, Indianapolis, Menlo Park and Melbourne. Four users, four clearances, all stored in **one plain-text file**. |
 | **Maintenance panel** | Admins flip toggle switches to grant or revoke stations. Changes apply to open consoles within seconds. Every sign-in, grant, denial and change is logged by the **flight recorder**. |
 | **Customer page** (`customer/`) | A "Flight Weather Desk" website. The customer picks a station and starts a Genesys Cloud **Web Messaging** chat. |
-| **Genesys Cloud setup** (`genesys/`) | One idempotent script that builds everything in your org: agents, group, queues, a WebRTC phone per agent, an Architect **inbound message flow**, Messenger configuration + deployment, a **PKCE OAuth client** and the **Interaction Widget**. |
+| **Genesys Cloud setup** (`genesys/`) | One idempotent script that builds everything in your org: agents, a group, **one queue whose members are that group**, a WebRTC phone per agent, an Architect **inbound message flow** with a name bot, Messenger configuration + deployment, a **PKCE OAuth client** and the **Interaction Widget**. |
 
-When the chat reaches the agent, the WX-84 console opens inside the interaction and links itself to the agent's Genesys Cloud sign-in, without a window or a click (where the browser allows it; otherwise one click on "Engage link" opens a popup). WX-84 then verifies the agent with Genesys Cloud and shows only the stations that agent is cleared for. It also highlights the station the customer asked about, or flags **ACCESS DENIED** if the chat landed with the wrong agent.
+When the chat reaches the agent, the WX-84 console opens inside the interaction and links itself to the agent's Genesys Cloud sign-in, without a window or a click (where the browser allows it; otherwise one click on "Engage link" opens a popup). Every chat goes to the same queue, so any agent of the group may get it. WX-84 verifies the agent with Genesys Cloud and shows only the stations that agent is cleared for; the others are hidden. It also highlights the station the customer asked about, or flags **ACCESS DENIED** if the agent who took the chat is not cleared for it.
 
 > **Demo software.** No passwords, a text file instead of a database, and an in-memory session store. These are deliberate choices that keep the access-control *logic* readable. See [What this demo does not do](#what-this-demo-intentionally-does-not-do).
 
@@ -98,7 +98,7 @@ npm run genesys:setup -- --public-url https://<your-tunnel>.trycloudflare.com
 
 <img src="docs/img/widget-narrow.jpg" alt="The console at interaction-widget width: the agent's own station first" width="300" align="right">
 
-The routing: the customer page sets the Web Messaging custom attribute `location` before the first message. The Architect flow [`genesys/flow/wx84-station-router.yaml`](genesys/flow/wx84-station-router.yaml) first calls a small digital bot, [`wx84-name-collector.yaml`](genesys/flow/wx84-name-collector.yaml), which asks the customer for their last name and attaches it as participant data `wx84.lastName`. The console shows it in the incoming banner; it is typed by the customer, so it is a claim, not a verified identity, and WX-84 never stores it. The flow then reads `location` with *Get Participant Data* and transfers to `WX-84 Menlo Park`, `WX-84 Indianapolis` or `WX-84 Melbourne`. Anything else goes to `WX-84 Supervisor`, where the admin agent works. Dortmund is the HQ station: the admin sees it, but customers cannot select it.
+The routing: the customer page sets the Web Messaging custom attribute `location` before the first message. The Architect flow [`genesys/flow/wx84-station-router.yaml`](genesys/flow/wx84-station-router.yaml) first calls a small digital bot, [`wx84-name-collector.yaml`](genesys/flow/wx84-name-collector.yaml), which asks the customer for their last name and attaches it as participant data `wx84.lastName`. The console shows it in the incoming banner; it is typed by the customer, so it is a claim, not a verified identity, and WX-84 never stores it. The flow then transfers every chat to one queue, `WX-84 Weather Desk`, whose members are the group `WX-84 Agents`. Any agent of the group may get any chat: the station travels along as context, and the WX-84 console checks whether the agent who took the chat is cleared for it. Stations without clearance stay hidden. Dortmund is the HQ station: the admin sees it, but customers cannot select it.
 
 A ten-minute storyline for presenting the demo: [docs/demo-script.md](docs/demo-script.md).
 

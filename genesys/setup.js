@@ -2,8 +2,9 @@
 // WX-84 - Genesys Cloud provisioning script (idempotent, zero dependencies).
 //
 // Creates or updates everything the demo needs in a Genesys Cloud org:
-//   agents (users + roles + invite) -> group -> queues + members -> inbound
-//   message flow -> Messenger configuration + deployment -> PKCE OAuth client
+//   agents (users + roles + invite) -> group -> one queue whose members are the
+//   group -> name bot + inbound message flow -> removal of the retired station
+//   queues -> Messenger configuration + deployment -> PKCE OAuth client
 //   -> Interaction Widget integration -> config/config.json + data/users.txt
 //
 // Usage:
@@ -31,7 +32,12 @@ const NAMES = {
   deployment: 'WX-84 Flight Weather Desk',
   oauthClient: 'WX-84 Agent Console (PKCE)',
   integration: 'WX-84 Weather Command Unit',
-  queues: ['WX-84 Menlo Park', 'WX-84 Indianapolis', 'WX-84 Melbourne', 'WX-84 Supervisor'],
+  // Every chat goes to this one queue. Its members are the group above, so
+  // whoever is in "WX-84 Agents" takes chats; WX-84 decides what each one sees.
+  queue: 'WX-84 Weather Desk',
+  // Station queues of the first design. The setup deletes them once the router
+  // no longer sends chats there.
+  retiredQueues: ['WX-84 Menlo Park', 'WX-84 Indianapolis', 'WX-84 Melbourne', 'WX-84 Supervisor'],
 };
 const FLOW_DIR = path.join(ROOT, 'genesys', 'flow');
 // Deployed in this order: the station router calls the name bot by name.
@@ -166,7 +172,6 @@ function loadAgents() {
   const data = JSON.parse(fs.readFileSync(AGENTS_FILE, 'utf8'));
   for (const [key, a] of Object.entries(data.agents || {})) {
     if (!a.email || a.email.endsWith('@example.com')) fail(`genesys/agents.json: agent "${key}" still has a placeholder e-mail`);
-    if (!NAMES.queues.includes(a.queue)) fail(`genesys/agents.json: agent "${key}" has unknown queue "${a.queue}"`);
   }
   return data;
 }
@@ -229,14 +234,14 @@ async function ensureAgents({ divisionId }, agentsFile) {
 }
 
 async function ensureGroup(agents) {
-  step('Group (controls who sees the interaction widget)');
+  step('Group (takes the chats and sees the interaction widget)');
   const groups = await listAll('/api/v2/groups');
   let group = groups.find((g) => g.name === NAMES.group);
   if (!group) {
     if (DRY_RUN) { plan(`group "${NAMES.group}"`); return null; }
     group = await gc('POST', '/api/v2/groups', {
       name: NAMES.group,
-      description: 'Agents who may see the WX-84 interaction widget',
+      description: 'WX-84 agents: members of the WX-84 Weather Desk queue, see the WX-84 interaction widget',
       type: 'official',
       visibility: 'public',
       rulesVisible: true,
@@ -257,43 +262,61 @@ async function ensureGroup(agents) {
   return group;
 }
 
-async function ensureQueues({ divisionId }, agents) {
-  step('Queues');
-  const queues = {};
-  for (const name of NAMES.queues) {
-    const found = await gc('GET', `/api/v2/routing/queues?name=${enc(name)}&pageSize=25`);
-    let queue = (found.entities || []).find((q) => q.name === name);
-    if (queue) {
-      same(`queue "${name}" exists`);
-    } else if (DRY_RUN) {
-      plan(`queue "${name}"`);
-      queues[name] = null;
-      continue;
-    } else {
-      queue = await gc('POST', '/api/v2/routing/queues', {
-        name,
-        description: 'WX-84 demo queue',
-        division: { id: divisionId },
-        acwSettings: { wrapupPrompt: 'OPTIONAL' },
-        mediaSettings: { message: { alertingTimeoutSeconds: 30, serviceLevel: { percentage: 0.8, durationMs: 20000 } } },
-      });
-      ok(`created queue "${name}"`);
-    }
-    queues[name] = queue;
+/** Find a queue by its exact name (the name filter is a prefix match). */
+async function findQueue(name) {
+  const found = await gc('GET', `/api/v2/routing/queues?name=${enc(name)}&pageSize=25`);
+  return (found.entities || []).find((q) => q.name === name) || null;
+}
 
-    const wanted = Object.values(agents).filter((a) => a && a.queue === name);
-    const members = await listAll(`/api/v2/routing/queues/${queue.id}/members`);
-    const missing = wanted.filter((a) => !members.some((m) => m.id === a.id));
-    if (!missing.length) continue;
-    if (DRY_RUN) { plan(`add ${missing.map((a) => a.name).join(', ')} to "${name}"`); continue; }
-    try {
-      await gc('POST', `/api/v2/routing/queues/${queue.id}/members`, missing.map((a) => ({ id: a.id })));
-      ok(`  member: ${missing.map((a) => a.name).join(', ')}`);
-    } catch (err) {
-      warn(`  could not add ${missing.map((a) => a.name).join(', ')} (${err.status}). New users must accept the invitation first - run setup again afterwards.`);
+async function ensureQueue({ divisionId }, group) {
+  step('Queue (every chat goes here; the group provides the members)');
+  const name = NAMES.queue;
+  const groupMember = group ? { id: group.id, type: 'GROUP' } : null;
+  let queue = await findQueue(name);
+  if (!queue) {
+    if (DRY_RUN) { plan(`queue "${name}" with group "${NAMES.group}" as members`); return null; }
+    queue = await gc('POST', '/api/v2/routing/queues', {
+      name,
+      description: 'WX-84 demo: every customer chat. Members come from the group WX-84 Agents.',
+      division: { id: divisionId },
+      acwSettings: { wrapupPrompt: 'OPTIONAL' },
+      mediaSettings: { message: { alertingTimeoutSeconds: 30, serviceLevel: { percentage: 0.8, durationMs: 20000 } } },
+      memberGroups: groupMember ? [groupMember] : [],
+    });
+    ok(`created queue "${name}" (members: group "${NAMES.group}")`);
+  } else {
+    queue = await gc('GET', `/api/v2/routing/queues/${queue.id}`);
+    const linked = (queue.memberGroups || []).some((g) => g.id === group?.id);
+    if (linked || !groupMember) {
+      same(`queue "${name}" exists (members: group "${NAMES.group}")`);
+    } else if (DRY_RUN) {
+      plan(`link group "${NAMES.group}" to queue "${name}"`);
+    } else {
+      queue = await gc('PUT', `/api/v2/routing/queues/${queue.id}`, { ...queue, memberGroups: [...(queue.memberGroups || []), groupMember] });
+      ok(`linked group "${NAMES.group}" to queue "${name}"`);
     }
   }
-  return queues;
+  // Genesys fills the member list from the group in the background.
+  const members = await listAll(`/api/v2/routing/queues/${queue.id}/members`);
+  if (members.length) same(`  ${members.length} member(s) from the group: ${members.map((m) => m.name).join(', ')}`);
+  else warn('  no members yet - Genesys syncs the group within a minute; new users appear after accepting the invitation');
+  return queue;
+}
+
+/** Delete the station queues of the first design, after the router stopped using them. */
+async function retireOldQueues() {
+  step('Retired station queues (first design)');
+  for (const name of NAMES.retiredQueues) {
+    const queue = await findQueue(name);
+    if (!queue) { same(`"${name}" not present`); continue; }
+    if (DRY_RUN) { console.log(`  ${yellow('-')} queue "${name}" ${dim('(dry run: not deleted)')}`); continue; }
+    try {
+      await gc('DELETE', `/api/v2/routing/queues/${queue.id}?forceDelete=true`);
+      ok(`deleted queue "${name}"`);
+    } catch (err) {
+      warn(`could not delete "${name}": ${err.message}`);
+    }
+  }
 }
 
 const WEBRTC_META = 'inin_webrtc_softphone.json';
@@ -404,9 +427,9 @@ async function deployFlow(spec) {
   return flow;
 }
 
-async function ensureFlows(queues) {
+async function ensureFlows(queue) {
   step('Architect flows (name bot, then station router)');
-  if (!DRY_RUN && Object.values(queues).some((q) => !q)) fail('Queues are missing - cannot deploy the flows.');
+  if (!DRY_RUN && !queue) fail(`Queue "${NAMES.queue}" is missing - cannot deploy the flows.`);
   let router = null;
   for (const spec of FLOWS) {
     let flow = await findFlow(spec);
@@ -515,7 +538,7 @@ async function ensureOAuthClient(redirectUris) {
   return client;
 }
 
-async function ensureIntegration(publicUrl, group, queues) {
+async function ensureIntegration(publicUrl, group, queue) {
   step('Interaction Widget (client app inside the agent desktop)');
   const all = await listAll('/api/v2/integrations');
   let integration = all.find((x) => x.integrationType?.id === 'embedded-client-app-interaction-widget' && x.name === NAMES.integration);
@@ -536,7 +559,7 @@ async function ensureIntegration(publicUrl, group, queues) {
   await gc('PUT', `/api/v2/integrations/${integration.id}/config/current`, {
     name: NAMES.integration,
     version: current.version,
-    notes: 'WX-84 demo - shows the WX-84 console in web-messaging interactions on the WX-84 queues',
+    notes: 'WX-84 demo - shows the WX-84 console in web-messaging interactions on the WX-84 Weather Desk queue',
     properties: {
       url,
       // allow-popups: the Genesys sign-in runs in a popup. Genesys accepts only
@@ -545,7 +568,7 @@ async function ensureIntegration(publicUrl, group, queues) {
       sandbox: 'allow-scripts,allow-same-origin,allow-forms,allow-modals,allow-popups',
       permissions: '',
       groups: group ? [group.id] : [],
-      queueIdFilterList: Object.values(queues).filter(Boolean).map((q) => q.id),
+      queueIdFilterList: queue ? [queue.id] : [],
       communicationTypeFilter: '',
     },
     advanced: {},
@@ -611,14 +634,15 @@ async function main() {
   const agentsFile = loadAgents();
   const agents = await ensureAgents(organization, agentsFile);
   const group = await ensureGroup(agents);
-  const queues = await ensureQueues(organization, agents);
+  const queue = await ensureQueue(organization, group);
   await ensurePhones(agents);
-  const flow = await ensureFlows(queues);
+  const flow = await ensureFlows(queue);
+  await retireOldQueues();
   const messenger = await ensureMessenger(flow);
 
   const redirectUris = [...new Set([`http://localhost:${cfg.port}/auth/popup.html`, `${publicUrl}/auth/popup.html`])];
   const client = await ensureOAuthClient(redirectUris);
-  await ensureIntegration(publicUrl, group, queues);
+  await ensureIntegration(publicUrl, group, queue);
 
   writeLocalConfig({
     publicUrl,
@@ -635,7 +659,7 @@ async function main() {
 
   console.log(`\n${green(bold('Done.'))} Next steps:
   1. Each agent accepts the invitation e-mail and sets a password (first run only).
-  2. Re-run this script once after that, so new users are added to their queues.
+  2. Re-run this script once after that, so new users join the group (and with it the queue).
   3. Agents sign in to https://apps.${region}, go On Queue.
   4. Customer: open http://localhost:${cfg.port}/customer/ and pick a station.
   See docs/genesys-setup.md for details and troubleshooting.\n`);

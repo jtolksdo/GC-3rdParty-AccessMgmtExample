@@ -286,7 +286,7 @@ footer { color: var(--faint); font: 11.5px var(--mono); }
         <g class="edge" data-edge="e-loc"><path class="hit" d="M115,252 V296"/><path class="ln" d="M115,252 V296"/><text class="lbl" x="123" y="278">sets location</text></g>
         <g class="edge" data-edge="e-msg"><path class="hit" d="M194,324 H262"/><path class="ln" d="M194,324 H262"/><text class="lbl" x="228" y="316" text-anchor="middle">messages</text></g>
         <g class="edge both" data-edge="e-bot"><path class="hit" d="M420,296 V252"/><path class="ln" d="M420,296 V252"/><text class="lbl" x="430" y="278">asks last name</text></g>
-        <g class="edge" data-edge="e-route"><path class="hit" d="M420,352 V396"/><path class="ln" d="M420,352 V396"/><text class="lbl" x="430" y="378">routes by location</text></g>
+        <g class="edge" data-edge="e-route"><path class="hit" d="M420,352 V396"/><path class="ln" d="M420,352 V396"/><text class="lbl" x="430" y="378">every chat to one queue</text></g>
         <g class="edge" data-edge="e-offer"><path class="hit" d="M578,424 H652"/><path class="ln" d="M578,424 H652"/><text class="lbl" x="615" y="416" text-anchor="middle">offers chat</text></g>
         <g class="edge" data-edge="e-open"><path class="hit" d="M745,396 V252"/><path class="ln" d="M745,396 V252"/><text class="lbl" x="755" y="328">opens widget</text></g>
         <g class="edge" data-edge="e-start"><path class="hit" d="M745,196 V148"/><path class="ln" d="M745,196 V148"/><text class="lbl" x="755" y="176">starts sign-in</text></g>
@@ -304,7 +304,7 @@ footer { color: var(--faint); font: 11.5px var(--mono); }
         <g class="node" id="n-login"><rect x="428" y="96" width="150" height="52" rx="6"/><text class="t" x="503" y="118" text-anchor="middle">Login (OAuth)</text><text class="s" x="503" y="136" text-anchor="middle">login.usw2.pure.cloud</text></g>
         <g class="node" id="n-bot"><rect x="262" y="196" width="316" height="56" rx="6"/><text class="t" x="420" y="219" text-anchor="middle">WX-84 Name Collector</text><text class="s" x="420" y="237" text-anchor="middle">bot flow</text></g>
         <g class="node" id="n-router"><rect x="262" y="296" width="316" height="56" rx="6"/><text class="t" x="420" y="319" text-anchor="middle">WX-84 Station Router</text><text class="s" x="420" y="337" text-anchor="middle">inbound message flow</text></g>
-        <g class="node" id="n-queues"><rect x="262" y="396" width="316" height="56" rx="6"/><text class="t" x="420" y="419" text-anchor="middle">Station queues</text><text class="s" x="420" y="437" text-anchor="middle">3 stations + Supervisor</text></g>
+        <g class="node" id="n-queues"><rect x="262" y="396" width="316" height="56" rx="6"/><text class="t" x="420" y="419" text-anchor="middle">WX-84 Weather Desk</text><text class="s" x="420" y="437" text-anchor="middle">queue · members: group WX-84 Agents</text></g>
         <g class="node" id="n-frame"><rect x="652" y="96" width="186" height="52" rx="6"/><text class="t" x="745" y="118" text-anchor="middle">Hidden sign-in frame</text><text class="s" x="745" y="136" text-anchor="middle">PKCE · auth/popup.html</text></g>
         <g class="node" id="n-widget"><rect x="652" y="196" width="186" height="56" rx="6"/><text class="t" x="745" y="219" text-anchor="middle">WX-84 widget</text><text class="s" x="745" y="237" text-anchor="middle">Interaction Widget</text></g>
         <g class="node" id="n-chat"><rect x="652" y="396" width="186" height="56" rx="6"/><text class="t" x="745" y="419" text-anchor="middle">Chat</text><text class="s" x="745" y="437" text-anchor="middle">customer conversation</text></g>
@@ -372,15 +372,15 @@ footer { color: var(--faint); font: 11.5px var(--mono); }
       <div class="side gc">
         <h3>GENESYS CLOUD DECIDES</h3>
         <ul>
-          <li>Which agent gets the chat <span>(queues, routing by location)</span></li>
-          <li>Who sees the WX-84 widget <span>(group WX-84 Agents, WX-84 queues only)</span></li>
+          <li>Which agent gets the chat <span>(one queue, any member of the group WX-84 Agents)</span></li>
+          <li>Who sees the WX-84 widget <span>(group WX-84 Agents, WX-84 Weather Desk queue only)</span></li>
           <li>Who may read the conversation and the customer's last name <span>(the agent's own roles; WX-84 reads it with the agent's token)</span></li>
         </ul>
       </div>
       <div class="side wx">
         <h3>WX-84 DECIDES</h3>
         <ul>
-          <li>Which weather stations an agent sees <span>(users.txt, read on every request, filtered on the server)</span></li>
+          <li>Which weather stations an agent sees <span>(users.txt, read on every request, filtered on the server; the rest stay hidden)</span></li>
           <li>Who may change permissions <span>(role admin, through the maintenance panel)</span></li>
           <li>What is logged <span>(every grant, denial and change in the flight recorder; never the customer's name)</span></li>
         </ul>
@@ -414,9 +414,9 @@ footer { color: var(--faint); font: 11.5px var(--mono); }
     <dl class="objects">
       <dt>Interaction Widget</dt><dd><b>WX-84 Weather Command Unit</b><span>The panel in Agent Workspace (cube icon). Integration type <code>embedded-client-app-interaction-widget</code> with URL, sandbox, group and queue filter.</span></dd>
       <dt>OAuth client</dt><dd><b>WX-84 Agent Console (PKCE)</b><span>Authorization Code with PKCE, no client secret. Redirects to <code>auth/popup.html</code>.</span></dd>
-      <dt>Group</dt><dd><b>WX-84 Agents</b><span>Only members see the widget.</span></dd>
-      <dt>Queues</dt><dd><b>WX-84 Menlo Park · Indianapolis · Melbourne · Supervisor</b><span>One per station, plus the fallback for chats without a station.</span></dd>
-      <dt>Flows</dt><dd><b>WX-84 Station Router · WX-84 Name Collector</b><span>The router calls the bot for the last name, then routes by <code>location</code>.</span></dd>
+      <dt>Group</dt><dd><b>WX-84 Agents</b><span>The member list of the queue, and the only people who see the widget.</span></dd>
+      <dt>Queue</dt><dd><b>WX-84 Weather Desk</b><span>Every customer chat. Members come from the group, so any agent may get any chat.</span></dd>
+      <dt>Flows</dt><dd><b>WX-84 Station Router · WX-84 Name Collector</b><span>The router calls the bot for the last name, then sends every chat to the Weather Desk.</span></dd>
       <dt>Messenger</dt><dd><b>WX-84 Flight Weather Desk</b><span>Configuration and deployment behind the customer page.</span></dd>
       <dt>Phones</dt><dd><b>&lt;agent name&gt; (WebRTC)</b><span>Optional browser softphone per agent, set as default station.</span></dd>
     </dl>
@@ -430,14 +430,14 @@ footer { color: var(--faint); font: 11.5px var(--mono); }
   const DEMO_TUNNEL = '<span class="demo-note demo-only">In the demo, this request passes through the tunnel.</span>';
   const TRACES = {
     chat: { name: 'Customer chat', steps: [
-      { e: 'e-loc', t: 'Customer picks a station', d: 'The page stores the choice as the Web Messaging custom attribute <code>location</code> before the first message.' },
+      { e: 'e-loc', t: 'Customer picks a station', d: 'The page stores the choice as the Web Messaging custom attribute <code>location</code> before the first message. It does not route the chat; it travels along as context.' },
       { e: 'e-msg', t: 'Messages reach Architect', d: 'Genesys Cloud starts the inbound message flow <b>WX-84 Station Router</b>.' },
       { e: 'e-bot', t: 'A bot asks for the last name', d: 'The bot flow <b>WX-84 Name Collector</b> asks once. The router attaches the answer as participant data <code>wx84.lastName</code>.' },
-      { e: 'e-route', t: 'The router picks the queue', d: 'It reads <code>location</code> and sends the chat to that station’s queue. No station means the Supervisor queue.' },
-      { e: 'e-offer', t: 'The agent gets the chat', d: 'The queue offers the chat to its agent in Agent Workspace.' },
+      { e: 'e-route', t: 'The router sends every chat to one queue', d: 'Every chat goes to <b>WX-84 Weather Desk</b>. Its members are the group <b>WX-84 Agents</b>, so the station plays no part in routing.' },
+      { e: 'e-offer', t: 'The agent gets the chat', d: 'The queue offers the chat to the next available agent of the group, in Agent Workspace. That agent may or may not be cleared for the station; WX-84 finds out.' },
     ] },
     signin: { name: 'Agent sign-in', steps: [
-      { e: 'e-open', t: 'The widget opens', d: 'For a chat on a WX-84 queue, Agent Workspace shows the Interaction Widget <b>WX-84 Weather Command Unit</b>. Its URL carries the conversation id.' },
+      { e: 'e-open', t: 'The widget opens', d: 'For a chat on the WX-84 Weather Desk queue, Agent Workspace shows the Interaction Widget <b>WX-84 Weather Command Unit</b>. Its URL carries the conversation id.' },
       { e: 'e-page', t: 'The console loads from WX-84', d: 'The agent’s browser fetches the console page over HTTPS.' + DEMO_TUNNEL },
       { e: 'e-start', t: 'A hidden sign-in frame starts', d: 'The console creates a one-time handoff id and an invisible frame that prepares PKCE: a secret verifier and its fingerprint.' },
       { e: 'e-auth', t: 'Genesys hands out a token', d: 'The agent is already signed in, so the login returns a one-time code at once, and the frame trades it for an access token. No client secret is involved. Where the browser blocks this (Safari, incognito), a popup does the same.' },

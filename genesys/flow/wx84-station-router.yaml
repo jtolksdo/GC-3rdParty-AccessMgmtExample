@@ -2,17 +2,20 @@
 #
 # 1. Calls the "WX-84 Name Collector" bot, which asks the customer for their
 #    last name, and attaches the answer as participant data "wx84.lastName".
-# 2. Reads the Web Messaging custom attribute "location" (set by the customer
-#    page with Database.set before the first message) and transfers the chat to
-#    the matching station queue. Anything else goes to the WX-84 Supervisor queue.
+# 2. Transfers every chat to the queue "WX-84 Weather Desk". Its members are the
+#    group "WX-84 Agents", so any of those agents may get the chat.
+#
+# The station the customer picked travels with the chat as the Web Messaging
+# custom attribute "location". It does not route: the WX-84 console reads it as
+# context and checks whether the agent who took the chat is cleared for it.
 #
 # Deployed by genesys/setup.js through the Architect jobs API
 # (POST /api/v2/flows/jobs) - no local Archy installation needed.
 inboundShortMessage:
   name: WX-84 Station Router
-  description: Routes WX-84 customer chats to the station the customer selected.
+  description: Sends every WX-84 customer chat to the WX-84 Weather Desk queue.
   division: Home
-  startUpRef: "/inboundShortMessage/states/state[Route by station_10]"
+  startUpRef: "/inboundShortMessage/states/state[Route to the desk_10]"
   defaultLanguage: en-us
   supportedLanguages:
     en-us:
@@ -24,21 +27,9 @@ inboundShortMessage:
         none: true
   states:
     - state:
-        name: Route by station
-        refId: Route by station_10
+        name: Route to the desk
+        refId: Route to the desk_10
         variables:
-          - stringVariable:
-              name: State.location
-              initialValue:
-                noValue: true
-              isInput: false
-              isOutput: false
-          - stringVariable:
-              name: State.station
-              initialValue:
-                lit: none
-              isInput: false
-              isOutput: false
           - stringVariable:
               name: State.lastName
               initialValue:
@@ -75,98 +66,20 @@ inboundShortMessage:
                       lit: wx84.lastName
                     value:
                       exp: If(IsNotSetOrEmpty(State.lastName), "", State.lastName)
-          - getParticipantData:
-              name: Read customer station choice
-              attributes:
-                - attribute:
-                    name:
-                      lit: location
-                    variable: State.location
-          - updateData:
-              name: Normalize station
-              statements:
-                - string:
-                    variable: State.station
-                    value:
-                      exp: If(IsNotSetOrEmpty(State.location), "none", State.location)
-          - switch:
-              name: Pick station queue
-              evaluate:
-                firstTrue:
-                  default:
-                    actions:
-                      - sendResponse:
-                          name: Greeting supervisor
-                          messageBody:
-                            lit: Thank you. Connecting you to the duty supervisor.
-                      - transferToAcd:
-                          name: To supervisor queue
-                          targetQueue:
-                            lit:
-                              name: WX-84 Supervisor
-                          priority:
-                            lit: 0
-                          preferredAgents:
-                            noValue: true
-                          languageSkill:
-                            noValue: true
-                  cases:
-                    - case:
-                        value:
-                          exp: State.station == "menlo-park"
-                        actions:
-                          - sendResponse:
-                              name: Greeting Menlo Park
-                              messageBody:
-                                lit: Thank you. Connecting you to the Menlo Park station (KPAO).
-                          - transferToAcd:
-                              name: To Menlo Park queue
-                              targetQueue:
-                                lit:
-                                  name: WX-84 Menlo Park
-                              priority:
-                                lit: 0
-                              preferredAgents:
-                                noValue: true
-                              languageSkill:
-                                noValue: true
-                    - case:
-                        value:
-                          exp: State.station == "indianapolis"
-                        actions:
-                          - sendResponse:
-                              name: Greeting Indianapolis
-                              messageBody:
-                                lit: Thank you. Connecting you to the Indianapolis station (KIND).
-                          - transferToAcd:
-                              name: To Indianapolis queue
-                              targetQueue:
-                                lit:
-                                  name: WX-84 Indianapolis
-                              priority:
-                                lit: 0
-                              preferredAgents:
-                                noValue: true
-                              languageSkill:
-                                noValue: true
-                    - case:
-                        value:
-                          exp: State.station == "melbourne"
-                        actions:
-                          - sendResponse:
-                              name: Greeting Melbourne
-                              messageBody:
-                                lit: Thank you. Connecting you to the Melbourne station (YMML).
-                          - transferToAcd:
-                              name: To Melbourne queue
-                              targetQueue:
-                                lit:
-                                  name: WX-84 Melbourne
-                              priority:
-                                lit: 0
-                              preferredAgents:
-                                noValue: true
-                              languageSkill:
-                                noValue: true
+          - sendResponse:
+              name: Greeting
+              messageBody:
+                lit: Thank you. Connecting you to the next available duty meteorologist.
+          - transferToAcd:
+              name: To the Weather Desk
+              targetQueue:
+                lit:
+                  name: WX-84 Weather Desk
+              priority:
+                lit: 0
+              preferredAgents:
+                noValue: true
+              languageSkill:
+                noValue: true
           - disconnect:
               name: Disconnect

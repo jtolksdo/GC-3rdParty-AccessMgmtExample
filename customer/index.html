@@ -24,25 +24,26 @@
     <section class="hero">
       <p class="kicker">Duty meteorologists on call around the clock</p>
       <h1>Need a weather briefing?<br>Pick a station and start a chat.</h1>
-      <p class="lede">Each station has its own duty meteorologist. Choose where you are flying to, and your chat goes
-        straight to the person in charge of that station.</p>
+      <p class="lede">Choose where you are flying to. The next available duty meteorologist takes your chat and sees
+        your station right away.</p>
     </section>
 
     <div class="notice hidden" id="notice" role="status"></div>
 
     <section class="stations" id="stations" aria-label="Weather stations"></section>
 
-    <p class="fineprint">Prefer not to choose? The chat bubble in the corner connects you to the duty supervisor.</p>
+    <p class="fineprint">Prefer not to choose? The chat bubble in the corner connects you without a station.</p>
 
     <section class="how" id="how">
       <h2>How this demo works</h2>
       <ol>
         <li><b>You pick a station.</b> The page stores it as a Web Messaging <i>custom attribute</i>
           (<code>location</code>) before the chat starts.</li>
-        <li><b>Genesys Cloud routes the chat.</b> An Architect inbound message flow reads the attribute and transfers
-          the chat to the station's queue. Without a station, the chat goes to the <i>WX-84 Supervisor</i> queue.</li>
+        <li><b>Genesys Cloud routes the chat.</b> A bot asks for your last name, then an Architect inbound message flow
+          transfers the chat to the <i>WX-84 Weather Desk</i> queue. Every agent in the group <i>WX-84 Agents</i> can take it.</li>
         <li><b>The agent answers in Genesys Cloud.</b> The WX-84 console opens in the interaction panel. It signs the
-          agent in with their verified Genesys identity and shows only the stations that agent is cleared for.</li>
+          agent in with their verified Genesys identity and shows only the stations that agent is cleared for; the
+          others are hidden. If the agent is not cleared for your station, the console says so.</li>
       </ol>
     </section>
   </main>

@@ -193,11 +193,10 @@ body[data-lang="plain"] .tech-only, body[data-lang="tech"] .plain-only { display
 .verdict { font: 26px/1.05 var(--crt); letter-spacing: .02em; text-shadow: 0 0 8px rgba(61,255,122,.35); }
 .verdict.deny { color: #ff6b61; text-shadow: 0 0 8px rgba(255,107,97,.35); }
 .verdict-sub { font: 12px var(--mono); color: #b9d8c2; }
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.tiles:empty { display: none; }
 .tile { border-radius: 6px; padding: 8px 10px; font: 12px var(--mono); border: 1px solid #22432d; color: #b9d8c2; display: grid; gap: 2px; }
 .tile b { font: 18px var(--crt); color: var(--crt-ink); font-weight: 400; }
-.tile.locked { border-color: #5a4a17; color: #c9a85a; background: repeating-linear-gradient(-45deg, rgba(255,176,0,.16) 0 6px, transparent 6px 12px); }
-.tile.locked b { color: #ffb000; }
 .tile.off { opacity: .35; }
 
 /* ---------- partner guidance ---------- */
@@ -327,6 +326,7 @@ footer { font: 12px var(--mono); color: var(--dim); }
           <div class="verdict" id="verdict"></div>
           <div class="verdict-sub" id="verdict-sub"></div>
           <div class="tiles" id="tiles"></div>
+          <div class="verdict-sub" id="tiles-note"></div>
         </div>
       </div>
     </div>
@@ -710,23 +710,28 @@ footer { font: 12px var(--mono); color: var(--dim); }
         verdict.textContent = 'ACCESS DENIED';
         verdict.className = 'verdict deny';
         sub.textContent = `${v.reason}. Logged in the flight recorder.`;
-        renderTiles([], true);
+        renderTiles([]);
       }
     }, delay * 4);
   }
 
-  function renderTiles(open, denied) {
+  // Like the WX-84 console: only cleared stations are shown, the rest are hidden.
+  function renderTiles(open) {
     const tiles = $('#tiles'); tiles.replaceChildren();
-    STATIONS.forEach((s) => {
+    const shown = open === null ? STATIONS : STATIONS.filter((s) => open.includes(s.id));
+    shown.forEach((s) => {
       const d = document.createElement('div');
-      const isOpen = Array.isArray(open) && open.includes(s.id);
-      d.className = `tile${open === null ? ' off' : isOpen ? '' : ' locked'}`;
+      d.className = `tile${open === null ? ' off' : ''}`;
       const b = document.createElement('b'); b.textContent = s.icao;
       const n = document.createElement('span'); n.textContent = s.name;
-      const st = document.createElement('span'); st.textContent = open === null ? 'waiting' : isOpen ? 'weather shown' : 'locked';
+      const st = document.createElement('span'); st.textContent = open === null ? 'waiting' : 'weather shown';
       d.append(b, n, st);
       tiles.append(d);
     });
+    const hidden = STATIONS.length - shown.length;
+    $('#tiles-note').textContent = open === null ? ''
+      : hidden === STATIONS.length ? 'No station shown: all four stay hidden.'
+      : hidden ? `${hidden} station${hidden > 1 ? 's' : ''} hidden: no clearance.` : 'All four stations shown.';
   }
 
   // ----------------------------------------------------------- glossary ---

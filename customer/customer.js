@@ -1,5 +1,6 @@
 // Customer page: pick a station, attach it to the chat as a custom attribute,
-// open Genesys Cloud Messenger. The inbound message flow routes on it.
+// open Genesys Cloud Messenger. Every chat goes to one queue; the station is
+// context for the WX-84 console, which checks the agent's clearance for it.
 const $ = (sel) => document.querySelector(sel);
 const notice = (html, ok = false) => {
   const el = $('#notice');
@@ -46,12 +47,12 @@ async function startChat(station, button) {
   button.disabled = true;
   try {
     await whenReady();
-    // Must be set BEFORE the first message - the flow reads it via Get Participant Data.
+    // Must be set BEFORE the first message, so it is attached to the conversation.
     await command('Database.set', { messaging: { customAttributes: { location: station.id } } });
     try {
       await command('Messenger.open');
     } catch { /* already open - fine */ }
-    notice(`Connecting you to the <b>${station.name}</b> duty meteorologist. Say hello in the chat window.`, true);
+    notice(`Briefing for <b>${station.name}</b> requested. Say hello in the chat window; the next available duty meteorologist answers.`, true);
   } catch (err) {
     notice(`Could not start the chat: ${String(err?.message || err)}`);
   } finally {

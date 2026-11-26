@@ -7,14 +7,14 @@ This guide connects the local WX-84 console to a Genesys Cloud org. The provisio
 | Object | Name | Purpose |
 |---|---|---|
 | 4 users | from `genesys/agents.json` | The agents *Admin, Menlo, Indianapolis, Melbourne* (each gets an invitation e-mail) |
-| Group | `WX-84 Agents` | Only these users see the widget |
-| 4 queues | `WX-84 Menlo Park`, `WX-84 Indianapolis`, `WX-84 Melbourne`, `WX-84 Supervisor` | One agent each; the admin works the Supervisor queue |
+| Group | `WX-84 Agents` | All four agents. The group is the member list of the queue, and only its members see the widget |
+| Queue | `WX-84 Weather Desk` | Every customer chat. Its members come from the group, so any agent may get any chat; WX-84 decides what each one sees. The setup deletes the station queues of the first design (`WX-84 Menlo Park`, `WX-84 Indianapolis`, `WX-84 Melbourne`, `WX-84 Supervisor`) if they exist |
 | WebRTC phone per agent (optional) | `<agent name> (WebRTC)` | Browser softphone, set as the agent's default station, so the desktop does not ask for a phone. Skipped if the org has no cloud-media telephony site, or with `--no-phones`. Web messaging works without it. |
 | Digital bot flow | `WX-84 Name Collector` | Asks the customer for their last name (one slot, `builtin:any`, no Virtual Agent). Each bot session is billed as "Genesys Cloud for Bot Flow - Digital" (tokens) |
-| Inbound message flow | `WX-84 Station Router` | Calls the name bot, attaches the answer as `wx84.lastName`, then routes by the custom attribute `location` |
+| Inbound message flow | `WX-84 Station Router` | Calls the name bot, attaches the answer as `wx84.lastName`, then transfers every chat to `WX-84 Weather Desk`. The custom attribute `location` travels along as context |
 | Messenger configuration + deployment | `WX-84 Flight Weather Desk` | The chat on the customer page |
 | OAuth client (Code/PKCE) | `WX-84 Agent Console (PKCE)` | Agents sign in to WX-84 with their Genesys identity |
-| Interaction Widget | `WX-84 Weather Command Unit` | Shows the console inside web-messaging interactions on the WX-84 queues |
+| Interaction Widget | `WX-84 Weather Command Unit` | Shows the console inside web-messaging interactions on the `WX-84 Weather Desk` queue |
 
 ## Prerequisites
 
@@ -88,22 +88,24 @@ The script writes `config/config.json` (IDs only, no secrets). It also links the
 ## Step 5 - Agents
 
 1. Each agent accepts the invitation e-mail and sets a password.
-2. **Run the setup once more.** New users can only be added to queues after they are active.
+2. **Run the setup once more.** New users join the group, and with it the queue, only after they are active.
 3. Each agent signs in to `https://apps.usw2.pure.cloud` (use separate Chrome profiles or incognito windows to run several agents at once) and goes **On Queue**. Genesys Cloud loads widgets at sign-in, so an agent who was already signed in when the setup ran must reload the page once.
+
+Every chat goes to `WX-84 Weather Desk`, and Genesys offers it to any agent of the group who is On Queue and idle. To decide who gets the next chat, put only that agent On Queue.
 
 ## Step 6 - Test
 
-1. Open `http://localhost:3000/customer/` and click **Chat with Menlo Park**. Write "hello".
+1. Put only the Menlo agent On Queue. Open `http://localhost:3000/customer/` and click **Chat with Menlo Park**. Write "hello" and answer the bot with a last name.
 2. The Menlo agent accepts the chat. In Agent Workspace the widget sits behind the **cube icon** in the toolbar above the right-hand panel (or under **Tools**). Open **WX-84 Weather Command Unit**. It links itself within a few seconds (lamp GENESYS turns green). If it says *AUTO-LINK NOT AVAILABLE*, press **Engage link**: a popup flashes and closes.
-3. The console shows the operator `menlo / WX-84 Menlo Park`, identity source *Genesys Cloud*, and **CUSTOMER MÜLLER REQUESTS MENLO PARK (KPAO) - CLEARED** (with the name you gave the bot).
-4. Transfer the chat to the Melbourne queue. The Melbourne agent sees Melbourne. Transfer a Melbourne chat to Menlo and the Menlo console shows **ACCESS DENIED** for the requested station.
-5. On your Mac, sign in locally as `admin` (`http://localhost:3000`), open the **maintenance panel**, revoke a station, lift the guard, commit. The agent's console locks that station within ~4 seconds.
+3. The console shows the operator `menlo / WX-84 Menlo Park`, identity source *Genesys Cloud*, **CUSTOMER MÜLLER REQUESTS MENLO PARK (KPAO) - CLEARED** (with the name you gave the bot), and only the Menlo Park station. The other stations are hidden.
+4. Start a **Melbourne** chat while the Menlo agent is still the only one On Queue. The console shows **ACCESS DENIED** for the requested station, and Melbourne stays hidden. Transfer the chat to the Melbourne agent, whose console shows Melbourne.
+5. On your Mac, sign in locally as `admin` (`http://localhost:3000`), open the **maintenance panel**, revoke a station, lift the guard, commit. The station disappears from the agent's console within ~4 seconds.
 
 ## Troubleshooting
 
 | Symptom | Cause / fix |
 |---|---|
-| No WX-84 panel (no cube icon) in the interaction | The agent signed in before the setup created the widget: reload the page · the agent is not in the `WX-84 Agents` group · the conversation is not on a WX-84 queue |
+| No WX-84 panel (no cube icon) in the interaction | The agent signed in before the setup created the widget: reload the page · the agent is not in the `WX-84 Agents` group · the conversation is not on the `WX-84 Weather Desk` queue |
 | WX-84 panel is cut off on the right, with a horizontal scrollbar | The Agent Workspace column is wider than the browser window. Widen the window, collapse the interaction column («), or zoom out (Cmd/Ctrl −). The console itself fits down to about 230 px |
 | Profile panel says "You do not have permission to view external contacts" | Unrelated to WX-84: the agents' roles lack `externalContacts:contact:view`. Close the panel or grant the permission |
 | Widget panel stays blank | URL is `http://` (use the tunnel) · tunnel stopped or URL changed (re-run step 4) · the WX-84 server is not running |
@@ -113,8 +115,9 @@ The script writes `config/config.json` (IDs only, no secrets). It also links the
 | Popup shows `redirect_uri` error | The tunnel URL changed since the last setup run; re-run step 4 |
 | "ACCESS DENIED - no WX-84 account for …" | No line in `data/users.txt` has exactly that Genesys e-mail in the `genesys` column, or two lines share it (see `server/identity.js`) |
 | "Token belongs to a different Genesys Cloud organization" | You are signed in to another org in this browser |
-| Chat lands in `WX-84 Supervisor` instead of the station | The `location` attribute did not arrive before the first message. Use the station buttons, not the bare chat bubble. Reload the page between tests. |
-| `NO STATION SPECIFIED BY CUSTOMER` in the console | Same as above, or the agent's role lacks permission to read conversations (`conversation:communication:view`) |
+| Chat went to an agent who is not cleared for the station | Expected: every agent of the group can get any chat. The console says ACCESS DENIED and keeps the station hidden. Transfer to a cleared colleague, grant the station in the maintenance panel, or put only the right agent On Queue for the demo |
+| `NO STATION SPECIFIED BY CUSTOMER` in the console | The `location` attribute did not arrive before the first message: use the station buttons, not the bare chat bubble, and reload the page between tests. Or the agent's role lacks permission to read conversations (`conversation:communication:view`) |
+| `NO STATION CLEARED` in the console | The agent's line in `data/users.txt` lists no station. Grant one in the maintenance panel |
 | Flow job failed | The script prints Architect's validation messages. Fix `genesys/flow/wx84-station-router.yaml` and re-run |
 | Agent desktop says "no phone selected" | The phone step was skipped: the org has no active site with cloud media (Genesys Cloud Voice or BYOC Cloud) besides the Genesys core site, or no WebRTC base settings. Messaging still works; create the site/base settings and re-run to get phones |
 | "no license assigned yet" | Assign a Genesys Cloud CX license to the user (Admin → People) |
@@ -122,4 +125,4 @@ The script writes `config/config.json` (IDs only, no secrets). It also links the
 
 ## Narrower permissions for the setup client
 
-Instead of Master Admin, a custom role with: `directory:user:add/view`, `directory:group:add/edit/view`, `authorization:role:view`, `authorization:grant:add`, `authorization:license:view`, `routing:queue:add/edit/view`, `routing:queueMember:manage`, `architect:job:create/view`, `architect:flow:view/edit/publish`, `webDeployments:configuration:add/edit/view`, `webDeployments:deployment:add/edit/view`, `oauth:client:add/edit/view`, `integrations:integration:add/edit/view`, and for the optional WebRTC phones `telephony:plugin:all`.
+Instead of Master Admin, a custom role with: `directory:user:add/view`, `directory:group:add/edit/view`, `authorization:role:view`, `authorization:grant:add`, `authorization:license:view`, `routing:queue:add/edit/view/delete`, `architect:job:create/view`, `architect:flow:view/edit/publish`, `webDeployments:configuration:add/edit/view`, `webDeployments:deployment:add/edit/view`, `oauth:client:add/edit/view`, `integrations:integration:add/edit/view`, and for the optional WebRTC phones `telephony:plugin:all`.

@@ -11,7 +11,7 @@ flowchart LR
     MSG["Messenger<br/>deployment"]
     FLOW["Inbound message flow<br/>WX-84 Station Router"]
     BOT["Digital bot flow<br/>WX-84 Name Collector"]
-    Q["Queues<br/>Menlo Park · Indianapolis ·<br/>Melbourne · Supervisor"]
+    Q["Queue WX-84 Weather Desk<br/>members: group WX-84 Agents"]
     AD["Agent desktop<br/>+ Interaction Widget"]
     LOGIN["login.usw2.pure.cloud<br/>OAuth"]
     API["api.usw2.pure.cloud"]
@@ -93,7 +93,9 @@ sequenceDiagram
 | **`frame-ancestors` limited to Genesys domains** | Clickjacking protection: nobody else can embed the console. | No CSP. |
 | **Customer data read with the agent's token** | Genesys Cloud's own permissions decide whether the agent may see the conversation, and with it the customer's last name. Two access models stack: Genesys for customer data, WX-84 for partner data. | A service account: sees every conversation, so the partner app would have to re-implement Genesys' rules. |
 | **Customer name: shown, never stored or logged**, and escaped | It is personal data typed by the customer: an unverified claim and untrusted input. The rule for what is shown lives in `server/customer.js`. | Logging it in the flight recorder: personal data in an audit file. |
-| **Widget limited to a Genesys group + the WX-84 queues** | Defense in depth: Genesys decides who even *sees* the widget, and WX-84 decides what they see inside it. | Visible to everyone. |
+| **Widget limited to a Genesys group + the WX-84 Weather Desk queue** | Defense in depth: Genesys decides who even *sees* the widget, and WX-84 decides what they see inside it. | Visible to everyone. |
+| **One queue for the whole group; the station is context, not a route** | Any agent may get any chat, so the partner app has to decide per agent what to show: the realistic case for a shared team. Genesys stays simple: one queue, membership follows the group. | A queue per station: the right agent always gets the right chat, so the partner's access control is never put to the test. |
+| **Stations without clearance are hidden** | Less clutter: the agent sees only what they may use. Purely cosmetic, because the server already refuses data for those stations. | Locked panels with hazard plates: shows the access model, but clutters the console. |
 | **Open-Meteo + simulation fallback** | No API key in a public repo; a live demo never shows an empty cockpit. | Keyed weather APIs. |
 
 ## API (local server)
