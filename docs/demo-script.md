@@ -10,6 +10,7 @@
 * Browser window 3 (Chrome profile "Admin"): Genesys Cloud, agent **WX-84 Admin**, Off Queue for now.
 * Browser window 4: `http://localhost:3000`, signed in locally as **admin**, maintenance panel open.
 * All other WX-84 agents Off Queue. Every chat goes to the same queue, *WX-84 Weather Desk*, so whoever is On Queue gets the next chat.
+* Between runs, press **New conversation** at the top of the customer page. It ends the previous chat in Genesys Cloud and clears it from the browser, so the next station choice starts a fresh conversation.
 
 ## Storyline
 

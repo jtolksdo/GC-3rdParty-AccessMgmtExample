@@ -27,6 +27,13 @@ a { color: var(--brown); }
 .logo b { color: var(--mustard); }
 .logo span { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; margin-left: 10px; opacity: .8; }
 .top nav a { color: var(--paper); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+.top nav { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: flex-end; }
+.reset-btn {
+  font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink); background: var(--paper); border: 0; border-radius: 4px; padding: 8px 12px; cursor: pointer;
+}
+.reset-btn:hover:not(:disabled) { background: var(--rust); color: var(--paper); }
+.reset-btn:disabled { opacity: .5; cursor: default; }
 .livery { display: grid; grid-template-rows: repeat(3, 6px); }
 .livery i:nth-child(1) { background: var(--mustard); }
 .livery i:nth-child(2) { background: var(--rust); }

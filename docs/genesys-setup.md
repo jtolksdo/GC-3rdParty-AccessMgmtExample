@@ -12,7 +12,7 @@ This guide connects the local WX-84 console to a Genesys Cloud org. The provisio
 | WebRTC phone per agent (optional) | `<agent name> (WebRTC)` | Browser softphone, set as the agent's default station, so the desktop does not ask for a phone. Skipped if the org has no cloud-media telephony site, or with `--no-phones`. Web messaging works without it. |
 | Digital bot flow | `WX-84 Name Collector` | Asks the customer for their last name (one slot, `builtin:any`, no Virtual Agent). Each bot session is billed as "Genesys Cloud for Bot Flow - Digital" (tokens) |
 | Inbound message flow | `WX-84 Station Router` | Calls the name bot, attaches the answer as `wx84.lastName`, then transfers every chat to `WX-84 Weather Desk`. The custom attribute `location` travels along as context |
-| Messenger configuration + deployment | `WX-84 Flight Weather Desk` | The chat on the customer page |
+| Messenger configuration + deployment | `WX-84 Flight Weather Desk` | The chat on the customer page. *Conversation clear* is enabled, so the page's **New conversation** button (and the trash icon in the chat header) can end a chat and remove it from the browser |
 | OAuth client (Code/PKCE) | `WX-84 Agent Console (PKCE)` | Agents sign in to WX-84 with their Genesys identity |
 | Interaction Widget | `WX-84 Weather Command Unit` | Shows the console inside web-messaging interactions on the `WX-84 Weather Desk` queue |
 
@@ -116,7 +116,7 @@ Every chat goes to `WX-84 Weather Desk`, and Genesys offers it to any agent of t
 | "ACCESS DENIED - no WX-84 account for …" | No line in `data/users.txt` has exactly that Genesys e-mail in the `genesys` column, or two lines share it (see `server/identity.js`) |
 | "Token belongs to a different Genesys Cloud organization" | You are signed in to another org in this browser |
 | Chat went to an agent who is not cleared for the station | Expected: every agent of the group can get any chat. The console says ACCESS DENIED and keeps the station hidden. Transfer to a cleared colleague, grant the station in the maintenance panel, or put only the right agent On Queue for the demo |
-| `NO STATION SPECIFIED BY CUSTOMER` in the console | The `location` attribute did not arrive before the first message: use the station buttons, not the bare chat bubble, and reload the page between tests. Or the agent's role lacks permission to read conversations (`conversation:communication:view`) |
+| `NO STATION SPECIFIED BY CUSTOMER` in the console | The `location` attribute did not arrive before the first message: use the station buttons, not the bare chat bubble, and press **New conversation** between tests (Messenger keeps the last conversation in the browser, even across incognito tabs). Or the agent's role lacks permission to read conversations (`conversation:communication:view`) |
 | `NO STATION CLEARED` in the console | The agent's line in `data/users.txt` lists no station. Grant one in the maintenance panel |
 | Flow job failed | The script prints Architect's validation messages. Fix `genesys/flow/wx84-station-router.yaml` and re-run |
 | Agent desktop says "no phone selected" | The phone step was skipped: the org has no active site with cloud media (Genesys Cloud Voice or BYOC Cloud) besides the Genesys core site, or no WebRTC base settings. Messaging still works; create the site/base settings and re-run to get phones |

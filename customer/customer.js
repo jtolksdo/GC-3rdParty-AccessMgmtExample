@@ -60,6 +60,30 @@ async function startChat(station, button) {
   }
 }
 
+// "New conversation": end the chat in Genesys Cloud and forget it in this browser.
+// Messenger keeps the conversation in localStorage keys "_<deploymentId>:...", so
+// it survives reloads and even other incognito tabs. Only those keys are removed:
+// the WX-84 console's sign-in ticket lives on the same origin (localhost:3000).
+const CLEARED_FLAG = 'wx84.customer.cleared';
+async function newConversation(deploymentId, button) {
+  button.disabled = true;
+  notice('Ending the current conversation...', true);
+  try {
+    // Ends the interaction in Genesys Cloud too (needs "conversation clear" in the
+    // Messenger configuration, which the setup script enables). Rejects when
+    // there is no active conversation - then there is nothing to end.
+    if (ready.messenger) {
+      await Promise.race([command('MessagingService.clearConversation'), new Promise((r) => setTimeout(r, 5000))]);
+    }
+  } catch { /* nothing to end */ }
+  const prefix = `_${deploymentId}:`;
+  for (const store of [localStorage, sessionStorage]) {
+    for (const key of Object.keys(store)) if (key.startsWith(prefix)) store.removeItem(key);
+  }
+  sessionStorage.setItem(CLEARED_FLAG, '1');
+  location.reload();
+}
+
 const localTime = (timeZone) =>
   new Date().toLocaleTimeString('en-GB', { timeZone, hour: '2-digit', minute: '2-digit' });
 
@@ -102,6 +126,13 @@ async function boot() {
   if (!cfg.messenger.configured) {
     notice('Messenger is not configured yet. Run <code>npm run genesys:setup</code>, then reload this page.');
     return;
+  }
+  const reset = $('#btn-reset');
+  reset.disabled = false;
+  reset.addEventListener('click', () => newConversation(cfg.messenger.deploymentId, reset));
+  if (sessionStorage.getItem(CLEARED_FLAG)) {
+    sessionStorage.removeItem(CLEARED_FLAG);
+    notice('Previous conversation ended. Pick a station to start a new one.', true);
   }
   loadMessenger(cfg.messenger);
 }

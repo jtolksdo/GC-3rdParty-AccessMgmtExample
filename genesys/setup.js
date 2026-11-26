@@ -461,7 +461,7 @@ async function ensureMessenger(flow) {
         enabled: true,
         styles: { primaryColor: '#c4501d' },
         launcherButton: { visibility: 'On' },
-        apps: { conversations: { enabled: true } },
+        apps: { conversations: { enabled: true, conversationClear: { enabled: true } } },
       },
     });
     const published = await gc('POST', `/api/v2/webdeployments/configurations/${config.id}/versions/draft/publish`);
@@ -476,6 +476,31 @@ async function ensureMessenger(flow) {
       version = (await gc('POST', `/api/v2/webdeployments/configurations/${config.id}/versions/draft/publish`)).version;
     }
     same(`Messenger configuration exists (version ${version})`);
+  }
+  // The customer page's "New conversation" button ends the chat with
+  // MessagingService.clearConversation, which needs "conversation clear" enabled.
+  if (version) {
+    const current = await gc('GET', `/api/v2/webdeployments/configurations/${config.id}/versions/${version}`);
+    if (current.messenger?.apps?.conversations?.conversationClear?.enabled) {
+      same('  conversation clear enabled (customer page: "New conversation")');
+    } else if (DRY_RUN) {
+      plan('enable conversation clear and publish a new Messenger version');
+    } else {
+      const draft = await gc('GET', `/api/v2/webdeployments/configurations/${config.id}/versions/draft`);
+      const apps = draft.messenger?.apps || {};
+      await gc('PUT', `/api/v2/webdeployments/configurations/${config.id}/versions/draft`, {
+        name: draft.name,
+        description: draft.description,
+        languages: draft.languages,
+        defaultLanguage: draft.defaultLanguage,
+        messenger: {
+          ...draft.messenger,
+          apps: { ...apps, conversations: { ...(apps.conversations || {}), enabled: true, conversationClear: { enabled: true } } },
+        },
+      });
+      version = (await gc('POST', `/api/v2/webdeployments/configurations/${config.id}/versions/draft/publish`)).version;
+      ok(`enabled conversation clear and published Messenger configuration version ${version}`);
+    }
   }
 
   const deployments = await listAll('/api/v2/webdeployments/deployments');
