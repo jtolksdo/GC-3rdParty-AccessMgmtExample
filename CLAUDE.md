@@ -15,6 +15,7 @@ Public demo for Genesys Cloud partners: a third-party tool with its own access m
 * Region **usw2** (`apps.usw2.pure.cloud`, Messenger env `prod-usw2`).
 * Setup credentials: macOS keychain, service `wx84-genesys-setup`, accounts `client-id` / `client-secret`. Never in files.
 * Object names all start with `WX-84` (queue, flows, group, Messenger, OAuth client, integration). See `genesys/setup.js` → `NAMES`.
+* The only manual Genesys step after the setup: Admin > Contact Center > Panel Manager > Message > default panel = WX-84 Weather Command Unit (no API). The setup grants `agentUI:defaultPanels:view` through the role `WX-84 Agent`.
 
 ## Local-only files (git-ignored, never commit)
 

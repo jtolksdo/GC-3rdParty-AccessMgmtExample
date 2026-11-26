@@ -418,6 +418,7 @@ footer { color: var(--faint); font: 11.5px var(--mono); }
       <dt>Interaction Widget</dt><dd><b>WX-84 Weather Command Unit</b><span>The panel in Agent Workspace (cube icon). Integration type <code>embedded-client-app-interaction-widget</code> with URL, sandbox, group and queue filter.</span></dd>
       <dt>OAuth client</dt><dd><b>WX-84 Agent Console</b><span>Authorization Code grant with the client secret on the WX-84 server (kept in the macOS keychain); refresh tokens renew access every hour. Redirects to <code>auth/callback</code>.</span></dd>
       <dt>Group</dt><dd><b>WX-84 Agents</b><span>The member list of the queue, and the only people who see the widget.</span></dd>
+      <dt>Role</dt><dd><b>WX-84 Agent</b><span>Permission <i>Agent UI &gt; Default Panels &gt; View</i>, so the org default panel applies. The default itself (Panel Manager: Message &gt; WX-84 Weather Command Unit) is set once by hand: Genesys has no API for it.</span></dd>
       <dt>Queue</dt><dd><b>WX-84 Weather Desk</b><span>Every customer chat. Members come from the group, so any agent may get any chat.</span></dd>
       <dt>Flows</dt><dd><b>WX-84 Station Router · WX-84 Name Collector</b><span>The router calls the bot for the last name, then sends every chat to the Weather Desk.</span></dd>
       <dt>Messenger</dt><dd><b>WX-84 Flight Weather Desk</b><span>Configuration and deployment behind the customer page.</span></dd>

@@ -26,6 +26,9 @@ import { USERS_FILE, ensureUsersFile, getUsers, saveUsers } from '../server/perm
 
 const NAMES = {
   group: 'WX-84 Agents',
+  // Lets the org's default panel (Panel Manager) apply to the agents, so a chat
+  // opens with the WX-84 panel instead of "Profile".
+  agentRole: 'WX-84 Agent',
   flow: 'WX-84 Station Router',
   botFlow: 'WX-84 Name Collector',
   messengerConfig: 'WX-84 Flight Weather Desk',
@@ -235,6 +238,42 @@ async function ensureAgents({ divisionId }, agentsFile) {
     result[key] = { ...agent, id: user.id };
   }
   return result;
+}
+
+/**
+ * Default panel for interactions. Genesys decides which panel an interaction
+ * opens with in Admin > Contact Center > Panel Manager (org-wide, per
+ * interaction type). That choice has no public API, so it stays one manual
+ * step (printed at the end). What the API can do: agents only get the default
+ * with the permission "Agent UI > Default Panels > View", granted here through
+ * a small role.
+ */
+async function ensureAgentRole({ divisionId }, agents) {
+  step('Role (lets the default panel apply to the agents)');
+  const policy = { domain: 'agentUI', entityName: 'defaultPanels', actionSet: ['view'] };
+  const roles = await listAll('/api/v2/authorization/roles');
+  let role = roles.find((r) => r.name === NAMES.agentRole);
+  if (!role) {
+    if (DRY_RUN) { plan(`role "${NAMES.agentRole}" (agentUI:defaultPanels:view)`); return; }
+    role = await gc('POST', '/api/v2/authorization/roles', {
+      name: NAMES.agentRole,
+      description: 'WX-84 demo: agents get the org default panel (Panel Manager), i.e. the WX-84 panel',
+      permissionPolicies: [policy],
+    });
+    ok(`created role "${NAMES.agentRole}" (agentUI:defaultPanels:view)`);
+  } else {
+    same(`role "${NAMES.agentRole}" exists`);
+  }
+  if (DRY_RUN) return;
+  for (const agent of Object.values(agents)) {
+    if (!agent) continue;
+    try {
+      await gc('POST', `/api/v2/authorization/subjects/${agent.id}/bulkadd`, { grants: [{ roleId: role.id, divisionId }] });
+    } catch (err) {
+      warn(`${agent.name}: could not grant "${NAMES.agentRole}" (${err.status})`);
+    }
+  }
+  same(`  granted to ${Object.values(agents).filter(Boolean).length} agent(s)`);
 }
 
 async function ensureGroup(agents) {
@@ -709,6 +748,7 @@ async function main() {
   const agentsFile = loadAgents();
   const agents = await ensureAgents(organization, agentsFile);
   const group = await ensureGroup(agents);
+  await ensureAgentRole(organization, agents);
   const queue = await ensureQueue(organization, group);
   await ensurePhones(agents);
   const flow = await ensureFlows(queue);
@@ -736,8 +776,11 @@ async function main() {
   console.log(`\n${green(bold('Done.'))} Next steps:
   1. Each agent accepts the invitation e-mail and sets a password (first run only).
   2. Re-run this script once after that, so new users join the group (and with it the queue).
-  3. Agents sign in to https://apps.${region}, go On Queue.
-  4. Customer: open http://localhost:${cfg.port}/customer/ and pick a station.
+  3. ${yellow('Once, by hand (no API):')} Admin > Contact Center > Panel Manager > set the default panel
+     for Message interactions to "${NAMES.integration}" and save. Chats then open the WX-84 panel
+     instead of "Profile" (agents reload Agent Workspace once).
+  4. Agents sign in to https://apps.${region}, go On Queue, and open the WX-84 panel once to link it.
+  5. Customer: open http://localhost:${cfg.port}/customer/ and pick a station.
   See docs/genesys-setup.md for details and troubleshooting.\n`);
 }
 

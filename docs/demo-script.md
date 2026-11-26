@@ -12,6 +12,7 @@
 * All other WX-84 agents Off Queue. Every chat goes to the same queue, *WX-84 Weather Desk*, so whoever is On Queue gets the next chat.
 * Between runs, press **New conversation** at the top of the customer page. It ends the previous chat in Genesys Cloud and clears it from the browser, so the next station choice starts a fresh conversation.
 * Every demo agent has linked WX-84 once since the last change to the sign-in (one `SIGN-IN` per agent in the flight recorder). The link survives server restarts and renews itself every hour, so there is no sign-in during the demo.
+* Panel Manager has **WX-84 Weather Command Unit** as the default panel for Message interactions, so every chat opens straight with the WX-84 panel.
 
 ## Storyline
 

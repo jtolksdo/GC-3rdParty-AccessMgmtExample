@@ -8,6 +8,7 @@ This guide connects the local WX-84 console to a Genesys Cloud org. The provisio
 |---|---|---|
 | 4 users | from `genesys/agents.json` | The agents *Admin, Menlo, Indianapolis, Melbourne* (each gets an invitation e-mail) |
 | Group | `WX-84 Agents` | All four agents. The group is the member list of the queue, and only its members see the widget |
+| Role | `WX-84 Agent` | One permission, *Agent UI > Default Panels > View* (`agentUI:defaultPanels:view`), granted to the four agents. Without it, the org's default panel does not apply to them |
 | Queue | `WX-84 Weather Desk` | Every customer chat. Its members come from the group, so any agent may get any chat; WX-84 decides what each one sees. The setup deletes the station queues of the first design (`WX-84 Menlo Park`, `WX-84 Indianapolis`, `WX-84 Melbourne`, `WX-84 Supervisor`) if they exist |
 | WebRTC phone per agent (optional) | `<agent name> (WebRTC)` | Browser softphone, set as the agent's default station, so the desktop does not ask for a phone. Skipped if the org has no cloud-media telephony site, or with `--no-phones`. Web messaging works without it. |
 | Digital bot flow | `WX-84 Name Collector` | Asks the customer for their last name (one slot, `builtin:any`, no Virtual Agent). Each bot session is billed as "Genesys Cloud for Bot Flow - Digital" (tokens) |
@@ -93,6 +94,7 @@ The script writes `config/config.json` (IDs only, no secrets). It also links the
 2. **Run the setup once more.** New users join the group, and with it the queue, only after they are active.
 3. Each agent signs in to `https://apps.usw2.pure.cloud` (use separate Chrome profiles or incognito windows to run several agents at once) and goes **On Queue**. Genesys Cloud loads widgets at sign-in, so an agent who was already signed in when the setup ran must reload the page once.
 4. Each agent opens the WX-84 panel once, in a chat on the Weather Desk. It links silently (or after one click on **Engage link**). From then on the WX-84 server keeps the link with the refresh token, also across server restarts: the flight recorder shows one `SIGN-IN` per agent and then `TOKEN REFRESH OK` every hour.
+5. **Once, by hand (Genesys has no API for it):** Admin > Contact Center > **Panel Manager** > set the default panel for **Message** interactions to **WX-84 Weather Command Unit**, then **Save**. From then on every chat opens with the WX-84 panel instead of *Profile*. Agents reload Agent Workspace once. The setting is org-wide and applies to every agent with the permission above.
 
 Every chat goes to `WX-84 Weather Desk`, and Genesys offers it to any agent of the group who is On Queue and idle. To decide who gets the next chat, put only that agent On Queue.
 
@@ -109,6 +111,7 @@ Every chat goes to `WX-84 Weather Desk`, and Genesys offers it to any agent of t
 | Symptom | Cause / fix |
 |---|---|
 | No WX-84 panel (no cube icon) in the interaction | The agent signed in before the setup created the widget: reload the page · the agent is not in the `WX-84 Agents` group · the conversation is not on the `WX-84 Weather Desk` queue |
+| A chat opens with *Profile* instead of the WX-84 panel | The default panel is not set: Admin > Contact Center > Panel Manager > Message > WX-84 Weather Command Unit > Save. Or the agent lacks *Agent UI > Default Panels > View* (the setup grants it through the role `WX-84 Agent`): reload Agent Workspace after the grant |
 | WX-84 panel is cut off on the right, with a horizontal scrollbar | The Agent Workspace column is wider than the browser window. Widen the window, collapse the interaction column («), or zoom out (Cmd/Ctrl −). The console itself fits down to about 230 px |
 | Profile panel says "You do not have permission to view external contacts" | Unrelated to WX-84: the agents' roles lack `externalContacts:contact:view`. Close the panel or grant the permission |
 | Widget panel stays blank | URL is `http://` (use the tunnel) · tunnel stopped or URL changed (re-run step 4) · the WX-84 server is not running |
@@ -133,4 +136,4 @@ Every chat goes to `WX-84 Weather Desk`, and Genesys offers it to any agent of t
 
 ## Narrower permissions for the setup client
 
-Instead of Master Admin, a custom role with: `directory:user:add/view`, `directory:group:add/edit/view`, `authorization:role:view`, `authorization:grant:add`, `authorization:license:view`, `routing:queue:add/edit/view/delete`, `architect:job:create/view`, `architect:flow:view/edit/publish`, `webDeployments:configuration:add/edit/view`, `webDeployments:deployment:add/edit/view`, `oauth:client:add/edit/view`, `integrations:integration:add/edit/view`, and for the optional WebRTC phones `telephony:plugin:all`.
+Instead of Master Admin, a custom role with: `directory:user:add/view`, `directory:group:add/edit/view`, `authorization:role:add/view`, `authorization:grant:add`, `authorization:license:view`, `routing:queue:add/edit/view/delete`, `architect:job:create/view`, `architect:flow:view/edit/publish`, `webDeployments:configuration:add/edit/view`, `webDeployments:deployment:add/edit/view`, `oauth:client:add/edit/view`, `integrations:integration:add/edit/view`, and for the optional WebRTC phones `telephony:plugin:all`.
