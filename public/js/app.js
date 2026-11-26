@@ -21,6 +21,9 @@ const state = {
   customerName: null, // from the chat bot, shown only - never stored
   timers: [],
   cautionTimer: null,
+  renewTimer: null,
+  autoLink: 'idle', // silent sign-in: idle | running | failed
+  engaging: false,  // the "Engage link" popup flow is running
 };
 
 // ---------------------------------------------------------------- display
@@ -108,7 +111,8 @@ async function showSignIn() {
   if (state.embedded) {
     show('view-link');
     if (state.config.genesys.configured) {
-      silentGenesysSignIn();
+      if (document.hidden) $('#link-crt').textContent = '> AUTO-LINK STANDING BY UNTIL THIS PANEL IS VISIBLE_';
+      whenVisible(silentGenesysSignIn);
     } else {
       $('#link-crt').textContent = '> GENESYS LINK NOT CONFIGURED ON THIS UNIT. RUN: npm run genesys:setup';
     }
@@ -159,6 +163,8 @@ async function localSignIn(username) {
 const SILENT_TIMEOUT_MS = 10000;
 
 async function silentGenesysSignIn() {
+  if (state.engaging || state.autoLink === 'running') return; // popup open, or already trying
+  state.autoLink = 'running';
   const crt = $('#link-crt');
   const handoff = newHandoffId();
   const failed = new AbortController();
@@ -168,10 +174,12 @@ async function silentGenesysSignIn() {
   try {
     const { token } = await waitForHandoff(handoff, { timeoutMs: SILENT_TIMEOUT_MS, signal: failed.signal });
     stop();
+    state.autoLink = 'idle';
     setToken(token);
     await enterCockpit();
   } catch (err) {
     stop();
+    state.autoLink = 'failed';
     if (err.message === 'SUPERSEDED') return; // the agent pressed "Engage link" meanwhile
     if (err.status === 403) {
       // Genesys confirmed the agent, WX-84 refused: no point in offering the popup.
@@ -207,6 +215,8 @@ async function genesysSignIn(crt) {
   }
   lamp('genesys', 'amber', 'LINKING', { blink: true });
   crt.textContent = '> SIGN-IN WINDOW OPEN. VERIFYING IDENTITY WITH GENESYS CLOUD...';
+  state.engaging = true;
+  onNextVisible = null; // a pending silent attempt is no longer needed
   try {
     const { token } = await waitForHandoff(handoff, {
       onTick: (s) => { crt.textContent = `> VERIFYING IDENTITY WITH GENESYS CLOUD... ${s}s`; },
@@ -218,6 +228,8 @@ async function genesysSignIn(crt) {
     crt.textContent = `> ${err.message}`;
     lamp('genesys', 'red', err.status === 403 ? 'DENIED' : 'FAILED');
     caution(err.message);
+  } finally {
+    state.engaging = false;
   }
 }
 $('#btn-engage').addEventListener('click', () => genesysSignIn($('#link-crt')));
@@ -229,6 +241,27 @@ $('#btn-genesys-login').addEventListener('click', () => genesysSignIn($('#login-
 // fails (Genesys login session gone), the session ends on time and the console
 // falls back to the link screen, where silent sign-in or "Engage" takes over.
 const RENEW_BEFORE_MS = 2 * 60 * 1000;
+
+// Chrome throttles timers in background windows (about once a minute), so a
+// silent sign-in started there runs out of time without finishing. Silent
+// sign-in and renewal therefore wait until the panel is visible, and coming
+// back to the window checks the session at once.
+let onNextVisible = null;
+function whenVisible(fn) {
+  if (!document.hidden) return fn();
+  onNextVisible = fn; // the latest wish wins
+  return undefined;
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  const pending = onNextVisible;
+  onNextVisible = null;
+  if (pending) return pending();
+  if (state.me) return pollMe(); // an expired session shows up now, not at the next poll
+  // A failed auto-link gets another try before the agent reaches for "Engage".
+  if (state.embedded && state.autoLink === 'failed' && !state.engaging) silentGenesysSignIn();
+});
+
 function scheduleRenewal() {
   clearTimeout(state.renewTimer);
   if (state.me?.source !== 'genesys' || !state.me.expiresAt) return;
@@ -237,6 +270,8 @@ function scheduleRenewal() {
 }
 
 async function renewGenesysLink() {
+  if (document.hidden) return whenVisible(renewGenesysLink);
+  if (state.me?.source !== 'genesys') return;
   const handoff = newHandoffId();
   const failed = new AbortController();
   const stop = startSilentSignIn(handoff, (reason) => failed.abort(reason));
