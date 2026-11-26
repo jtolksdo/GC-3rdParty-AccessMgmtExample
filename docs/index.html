@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WX-84 Explained</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono:wght@400;700&display=swap">
+<style>
+/* Layout: a short start page for GitHub Pages: name, one sentence, two page cards, links to the repo docs. */
+:root {
+  --bg: #e9edf0;
+  --surface: #f8fafb;
+  --ink: #12181c;
+  --dim: #56616a;
+  --line: #cfd7dc;
+  --accent: #9a6100;
+  --accent-fill: #ffb000;
+  --link: #0b6f96;
+  --sans: 'B612', 'Helvetica Neue', Arial, sans-serif;
+  --mono: 'B612 Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0d0f11; --surface: #171b1e; --ink: #e8e3d4; --dim: #9c978a; --line: #2f363b; --accent: #ffb000; --link: #59d2ff; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--sans); }
+.wrap {
+  max-width: 880px; margin: 0 auto; display: grid; gap: 28px;
+  padding-block: 48px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.eyebrow { font: 700 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.eyebrow b { color: var(--accent); }
+h1 { font: 700 clamp(30px, 5vw, 44px)/1.12 var(--sans); margin: 6px 0 0; text-wrap: balance; }
+p { margin: 0; max-width: 64ch; }
+.cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.card {
+  display: grid; gap: 8px; align-content: start; padding: 18px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink); text-decoration: none;
+}
+.card:hover, .card:focus-visible { border-color: var(--accent-fill); box-shadow: 0 0 0 1px var(--accent-fill); outline: none; }
+.card .k { font: 700 10.5px var(--mono); letter-spacing: .12em; color: var(--accent); }
+.card b { font-size: 19px; }
+.card span { color: var(--dim); font-size: 14.5px; }
+.card .go { font: 700 12px var(--mono); color: var(--link); }
+h2 { font: 700 13px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin: 0; }
+ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+a { color: var(--link); }
+footer { font: 12px var(--mono); color: var(--dim); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow"><b>WX-84</b> · Genesys Cloud partner demo</div>
+    <h1>WX-84 Weather Command Unit, explained</h1>
+  </header>
+  <p>A third-party tool with its own access management, embedded in the Genesys Cloud agent desktop. Genesys Cloud provides the verified agent identity; the tool decides what that agent may see.</p>
+
+  <div class="cards">
+    <a class="card" href="system-map.html">
+      <span class="k">FOR EVERYONE</span>
+      <b>System map</b>
+      <span>Customer chat routing, the agent sign-in and every request on one diagram, with a switch between the demo setup and production.</span>
+      <span class="go">Open the map →</span>
+    </a>
+    <a class="card" href="agent-sign-in.html">
+      <span class="k">FOR NON-DEVELOPERS</span>
+      <b>Agent sign-in</b>
+      <span>How a partner app learns which agent is looking without ever seeing a password. Ten steps, a gate simulator and a glossary.</span>
+      <span class="go">Open the explainer →</span>
+    </a>
+  </div>
+
+  <section>
+    <h2>In the repository</h2>
+    <ul>
+      <li><a href="https://github.com/jtolksdo/GC-3rdParty-AccessMgmtExample">README and source code</a></li>
+      <li><a href="https://github.com/jtolksdo/GC-3rdParty-AccessMgmtExample/blob/main/docs/architecture.md">Architecture and design decisions</a></li>
+      <li><a href="https://github.com/jtolksdo/GC-3rdParty-AccessMgmtExample/blob/main/docs/genesys-setup.md">Genesys Cloud setup guide</a></li>
+      <li><a href="https://github.com/jtolksdo/GC-3rdParty-AccessMgmtExample/blob/main/docs/demo-script.md">Demo script</a></li>
+    </ul>
+  </section>
+
+  <footer>MIT licensed demo software. Not an official Genesys product.</footer>
+</div>

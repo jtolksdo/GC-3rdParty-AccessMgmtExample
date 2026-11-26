@@ -17,6 +17,15 @@ When the chat reaches the agent, the WX-84 console opens inside the interaction 
 
 > **Demo software.** No passwords, a text file instead of a database, and an in-memory session store. These are deliberate choices that keep the access-control *logic* readable. See [What this demo does not do](#what-this-demo-intentionally-does-not-do).
 
+## See it explained
+
+Two interactive pages, nothing to install:
+
+* **[System map](https://jtolksdo.github.io/GC-3rdParty-AccessMgmtExample/system-map.html)**: customer chat routing, the agent sign-in and every request on one diagram, with a switch between the demo setup and production.
+* **[Agent sign-in, explained](https://jtolksdo.github.io/GC-3rdParty-AccessMgmtExample/agent-sign-in.html)**: for non-developers. How a partner app learns which agent is looking without ever seeing a password, with a gate simulator and a glossary.
+
+Both pages live in [`docs/`](docs/) and are served by GitHub Pages.
+
 ---
 
 ## Quick start (local only, 1 minute)

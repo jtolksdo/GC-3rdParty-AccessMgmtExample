@@ -26,3 +26,5 @@ Public demo for Genesys Cloud partners: a third-party tool with its own access m
 * Permissions are read per request (file mtime), never cached in sessions.
 * Local operator keys only for loopback requests without proxy headers (`isLocalRequest`).
 * Before each commit: `npm run scan` (secret scan, also installed as pre-commit hook).
+* Commits use the GitHub noreply address (repo-local `user.email`), never a private address.
+* `docs/*.html` are standalone pages served by GitHub Pages (branch `main`, folder `/docs`). The same files are also published as claude.ai artifacts: for that, publish a copy without the first four lines (doctype, `<html>`, charset, viewport), which the artifact service adds itself.
