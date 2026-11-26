@@ -109,6 +109,7 @@ function describeMe(ctx) {
     stations: perms.allowedStations(ctx.user),
     source: ctx.session.source,
     genesys: ctx.session.genesys ? { name: ctx.session.genesys.name, email: ctx.session.genesys.email } : null,
+    expiresAt: ctx.session.expiresAt, // Genesys sign-ins only: when the console must have renewed
     permissionsVersion: perms.permissionsVersion(),
   };
 }
@@ -162,7 +163,7 @@ route('POST', /^\/api\/session\/local$/, async (req) => {
 });
 
 route('POST', /^\/api\/session\/genesys$/, async (req) => {
-  const { accessToken, handoff } = await readJson(req);
+  const { accessToken, handoff, expiresIn } = await readJson(req);
   if (handoff !== undefined && !sessions.HANDOFF_ID.test(String(handoff))) throw new HttpError(400, 'Invalid handoff id');
   const park = (status, body) => handoff && sessions.parkHandoff(handoff, { status, body });
   try {
@@ -173,11 +174,19 @@ route('POST', /^\/api\/session\/genesys$/, async (req) => {
       audit.record({ actor: genesysUser.email || genesysUser.id, source: 'genesys', action: 'SIGN-IN', result: 'DENIED', detail: 'no WX-84 account mapped' });
       throw new HttpError(403, `ACCESS DENIED - no WX-84 account for ${genesysUser.name} <${genesysUser.email}>`);
     }
+    // The session ends one minute before the Genesys token it relies on (1 hour
+    // in this demo), so no Genesys call ever runs on an expired token. The
+    // console renews it silently before that. expiresIn comes from Genesys'
+    // token response; a wrong value only shortens or lengthens our own session,
+    // the token itself is still checked by Genesys on every call.
+    const cap = Number(process.env.WX84_GENESYS_SESSION_MAX_SECONDS) || Infinity; // shorter sessions, e.g. for testing
+    const lifetime = Math.min(Math.max(Number(expiresIn) || 3600, 120), 12 * 3600, cap);
     const token = sessions.createSession({
       username: user.username,
       source: 'genesys',
       genesys: { id: genesysUser.id, name: genesysUser.name, email: genesysUser.email },
       genesysAccessToken: accessToken,
+      expiresAt: Date.now() + (Math.max(lifetime, 120) - 60) * 1000,
     });
     audit.record({ actor: user.username, source: 'genesys', action: 'SIGN-IN', result: 'GRANTED', detail: `as ${genesysUser.name} <${genesysUser.email}>` });
     park(200, { token });

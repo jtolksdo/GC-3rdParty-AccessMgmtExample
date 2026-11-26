@@ -39,6 +39,10 @@ const NAMES = {
   // no longer sends chats there.
   retiredQueues: ['WX-84 Menlo Park', 'WX-84 Indianapolis', 'WX-84 Melbourne', 'WX-84 Supervisor'],
 };
+// Agent tokens last a working day. The WX-84 session lives as long as the token,
+// so the console needs Genesys' login (silent or popup) at most once a day per
+// agent. Genesys' login session itself can end much sooner (we saw about an hour).
+const AGENT_TOKEN_SECONDS = 12 * 60 * 60;
 const FLOW_DIR = path.join(ROOT, 'genesys', 'flow');
 // Deployed in this order: the station router calls the name bot by name.
 const FLOWS = [
@@ -545,7 +549,7 @@ async function ensureOAuthClient(redirectUris) {
     authorizedGrantType: 'CODE',
     registeredRedirectUri: redirectUris,
     scope: ['users:readonly', 'conversations:readonly'],
-    accessTokenValiditySeconds: 3600,
+    accessTokenValiditySeconds: AGENT_TOKEN_SECONDS,
   };
   if (!client) {
     if (DRY_RUN) { plan(`OAuth client "${NAMES.oauthClient}"`); return null; }
@@ -553,9 +557,14 @@ async function ensureOAuthClient(redirectUris) {
     ok(`created OAuth client (${client.id})`);
   } else {
     const current = [...(client.registeredRedirectUri || [])].sort().join();
-    if (current !== [...redirectUris].sort().join() && !DRY_RUN) {
+    const urisChanged = current !== [...redirectUris].sort().join();
+    const lifetimeChanged = client.accessTokenValiditySeconds !== AGENT_TOKEN_SECONDS;
+    if ((urisChanged || lifetimeChanged) && !DRY_RUN) {
       client = await gc('PUT', `/api/v2/oauth/clients/${client.id}`, { ...body, roleIds: client.roleIds });
-      ok(`updated redirect URIs: ${redirectUris.join(', ')}`);
+      if (urisChanged) ok(`updated redirect URIs: ${redirectUris.join(', ')}`);
+      if (lifetimeChanged) ok(`agent token lifetime set to ${AGENT_TOKEN_SECONDS / 3600} hours`);
+    } else if (urisChanged || lifetimeChanged) {
+      plan('update redirect URIs / agent token lifetime');
     } else {
       same(`OAuth client exists (${client.id})`);
     }

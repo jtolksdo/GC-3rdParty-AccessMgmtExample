@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["start"],
       "port": 3000
+    },
+    {
+      "name": "wx84-short-sessions",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["WX84_GENESYS_SESSION_MAX_SECONDS=300", "npm", "start"],
+      "port": 3000
     }
   ]
 }

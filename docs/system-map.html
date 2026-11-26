@@ -405,7 +405,7 @@ footer { color: var(--faint); font: 11.5px var(--mono); }
         </tbody>
       </table>
     </div>
-    <p class="also">Also simplified in the demo, independent of the tunnel: sessions live in memory, so a restart signs everyone out; the Genesys token is not renewed after its hour; the code is exchanged for the token in the browser. A production build would add a shared session store, silent renewal and a server-side exchange.</p>
+    <p class="also">Also simplified in the demo, independent of the tunnel: sessions live in memory, so a restart signs everyone out; the 12-hour Genesys token is renewed silently through the agent's Genesys login, which can expire sooner; the code is exchanged for the token in the browser. A production build would add a shared session store and a server-side exchange with refresh tokens.</p>
   </section>
 
   <section>

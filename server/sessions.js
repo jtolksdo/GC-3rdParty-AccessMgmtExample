@@ -11,20 +11,24 @@ const HANDOFF_TTL_MS = 2 * 60 * 1000;
 const sessions = new Map();
 const handoffs = new Map();
 
-export function createSession({ username, source, genesys = null, genesysAccessToken = null }) {
+// expiresAt (optional): a hard end, used for Genesys sign-ins so the session
+// never outlives the Genesys token it relies on.
+export function createSession({ username, source, genesys = null, genesysAccessToken = null, expiresAt = null }) {
   const token = crypto.randomBytes(24).toString('base64url');
   sessions.set(token, {
-    username, source, genesys, genesysAccessToken,
+    username, source, genesys, genesysAccessToken, expiresAt,
     createdAt: Date.now(), seen: new Set(),
   });
   return token;
 }
 
+const expired = (s, now = Date.now()) => now - s.createdAt > SESSION_TTL_MS || (s.expiresAt !== null && now >= s.expiresAt);
+
 export function getSession(token) {
   if (!token) return null;
   const session = sessions.get(token);
   if (!session) return null;
-  if (Date.now() - session.createdAt > SESSION_TTL_MS) {
+  if (expired(session)) {
     sessions.delete(token);
     return null;
   }
@@ -55,5 +59,5 @@ export function collectHandoff(id) {
 setInterval(() => {
   const now = Date.now();
   for (const [id, entry] of handoffs) if (entry.expires < now) handoffs.delete(id);
-  for (const [token, s] of sessions) if (now - s.createdAt > SESSION_TTL_MS) sessions.delete(token);
+  for (const [token, s] of sessions) if (expired(s, now)) sessions.delete(token);
 }, 60 * 1000).unref();

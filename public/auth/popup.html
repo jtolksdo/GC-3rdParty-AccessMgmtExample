@@ -76,7 +76,7 @@
       const res = await fetch('/api/session/genesys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessToken: token.access_token, handoff: saved.handoff }),
+        body: JSON.stringify({ accessToken: token.access_token, handoff: saved.handoff, expiresIn: token.expires_in }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) fail(data.error || `HTTP ${res.status}`);

@@ -223,7 +223,38 @@ async function genesysSignIn(crt) {
 $('#btn-engage').addEventListener('click', () => genesysSignIn($('#link-crt')));
 $('#btn-genesys-login').addEventListener('click', () => genesysSignIn($('#login-crt')));
 
+// A Genesys sign-in's WX-84 session ends with the Genesys token (1 hour). Two
+// minutes before that, the console signs in again silently in the background
+// and swaps its ticket, so the agent never sees the link screen. If renewal
+// fails (Genesys login session gone), the session ends on time and the console
+// falls back to the link screen, where silent sign-in or "Engage" takes over.
+const RENEW_BEFORE_MS = 2 * 60 * 1000;
+function scheduleRenewal() {
+  clearTimeout(state.renewTimer);
+  if (state.me?.source !== 'genesys' || !state.me.expiresAt) return;
+  const wait = Math.max(state.me.expiresAt - Date.now() - RENEW_BEFORE_MS, 30 * 1000);
+  state.renewTimer = setTimeout(renewGenesysLink, wait);
+}
+
+async function renewGenesysLink() {
+  const handoff = newHandoffId();
+  const failed = new AbortController();
+  const stop = startSilentSignIn(handoff, (reason) => failed.abort(reason));
+  try {
+    const { token } = await waitForHandoff(handoff, { timeoutMs: SILENT_TIMEOUT_MS, signal: failed.signal });
+    setToken(token);
+    state.me = await api('/api/me');
+    scheduleRenewal();
+    say('GENESYS LINK RENEWED');
+  } catch (err) {
+    if (err.message !== 'SUPERSEDED') say('GENESYS LINK RENEWAL FAILED - CONSOLE WILL ASK TO RELINK');
+  } finally {
+    stop();
+  }
+}
+
 async function signOut(reason = 'OPERATOR DISENGAGED') {
+  clearTimeout(state.renewTimer);
   try { await api('/api/session', { method: 'DELETE' }); } catch { /* already gone */ }
   clearToken();
   maintenance.close();
@@ -241,6 +272,7 @@ async function enterCockpit() {
   buildModules();
   await refreshWeather();
   startPolling();
+  scheduleRenewal();
   if (state.me.source === 'genesys' && state.conversationId) checkConversation();
   say(`OPERATOR ${state.me.username.toUpperCase()} ONLINE - ${state.me.stations.length} OF ${state.stations.length} STATIONS CLEARED`);
 }
@@ -448,6 +480,9 @@ async function checkConversation() {
     if (state.weather) for (const [id, mod] of state.modules) if (state.weather.stations[id]) renderReading(mod, state.weather.stations[id]);
     await verifyRequestedStation();
   } catch (err) {
+    // Expired or revoked Genesys token: relink instead of stopping here. The
+    // link screen signs in again (silently where possible) and repeats the lookup.
+    if (err.status === 401) return signOut('GENESYS LINK EXPIRED - RELINKING');
     $('#incoming-text').innerHTML = `CONVERSATION LOOKUP FAILED<small>${escapeHtml(err.message)}</small>`;
     setVerdict('red', 'ERROR');
   }

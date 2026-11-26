@@ -132,8 +132,8 @@ docs/              architecture, setup guide, demo script
 |---|---|
 | Plain-text permission file | A database or your IdP's groups/roles, with change history |
 | Password-less local sign-in | Remove it, or put it behind real authentication |
-| In-memory sessions (lost on restart) | A shared session store with expiry, and refresh/re-auth handling |
-| Genesys token kept until the session ends (1 h validity) | Re-authenticate on expiry, and revoke on sign-out |
+| In-memory sessions (lost on restart, so every agent signs in again) | A shared session store with expiry |
+| A 12-hour Genesys token (PKCE, no refresh token); the WX-84 session ends with it and the console renews it silently two minutes before | Authorization Code grant with a client secret on the server: Genesys then issues refresh tokens, so the server renews tokens without the agent's Genesys login. Revoke on sign-out |
 | `allowAllDomains: true` on the Messenger deployment | List your real website domains |
 | Identity mapping by e-mail | Map by immutable Genesys user id, or by Genesys group/role membership |
 | HTTPS via a developer tunnel | Proper hosting with your own domain and certificate |
