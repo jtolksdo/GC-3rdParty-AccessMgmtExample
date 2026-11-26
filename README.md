@@ -96,6 +96,10 @@ cloudflared tunnel --url http://localhost:3000
 npm run genesys:setup -- --public-url https://<your-tunnel>.trycloudflare.com
 ```
 
+![Agent Workspace with the chat on the left and the WX-84 panel on the right: the Indianapolis agent, verified by Genesys Cloud, got a request for Melbourne, which is denied and hidden](docs/img/agent-workspace.jpg)
+
+*In Agent Workspace: the chat on the left, the WX-84 panel (cube icon) on the right. The Indianapolis agent took Müller's request for Melbourne. WX-84 linked itself to the agent's Genesys sign-in, shows only the one station this agent is cleared for, and flags the requested station: Melbourne is not cleared, so it stays hidden.*
+
 <img src="docs/img/widget-narrow.jpg" alt="The console at interaction-widget width: the agent's own station first" width="300" align="right">
 
 The routing: the customer page sets the Web Messaging custom attribute `location` before the first message. The Architect flow [`genesys/flow/wx84-station-router.yaml`](genesys/flow/wx84-station-router.yaml) first calls a small digital bot, [`wx84-name-collector.yaml`](genesys/flow/wx84-name-collector.yaml), which asks the customer for their last name and attaches it as participant data `wx84.lastName`. The console shows it in the incoming banner; it is typed by the customer, so it is a claim, not a verified identity, and WX-84 never stores it. The flow then transfers every chat to one queue, `WX-84 Weather Desk`, whose members are the group `WX-84 Agents`. Any agent of the group may get any chat: the station travels along as context, and the WX-84 console checks whether the agent who took the chat is cleared for it. Stations without clearance stay hidden. Dortmund is the HQ station: the admin sees it, but customers cannot select it.
