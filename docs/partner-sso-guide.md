@@ -47,7 +47,7 @@ sequenceDiagram
 | OAuth client | Grant type **Code** (Authorization Code); scopes **read-only** and minimal; token lifetime **1 hour**; redirect URI **exactly** your server's callback | Short tokens are cheap once your server refreshes them. An exact redirect URI means only your server can receive the code |
 | Client secret | Stored in your secrets manager, never in a browser, a repo or a log | The secret is what makes the code worthless to anyone but your server, and what Genesys requires for refresh tokens |
 | Interaction Widget | URL of your app, limited to the right group and queues | Genesys decides who even sees the panel |
-| Default panel | Admin > Contact Center > **Panel Manager**: your Interaction Widget as the default for the interaction types it serves; agents need *Agent UI > Default Panels > View* | Otherwise every interaction opens with *Profile*, and the agent has to look for your app. Panel Manager has no public API: plan it as one manual step in your installation guide (the permission can be granted by API, through a role) |
+| Default panel | Admin > Contact Center > **Panel Manager**: your Interaction Widget as the default for the interaction types it serves; agents need *Agent UI > Default Panels > View* | Otherwise every interaction opens with *Profile*, and the agent has to look for your app. Tested: Message interactions accept a custom Interaction Widget as the default. Panel Manager has no public API: plan it as one manual step in your installation guide (the permission can be granted by API, through a role) |
 
 ### On your server
 

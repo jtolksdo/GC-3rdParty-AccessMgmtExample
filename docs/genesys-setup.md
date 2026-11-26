@@ -94,7 +94,7 @@ The script writes `config/config.json` (IDs only, no secrets). It also links the
 2. **Run the setup once more.** New users join the group, and with it the queue, only after they are active.
 3. Each agent signs in to `https://apps.usw2.pure.cloud` (use separate Chrome profiles or incognito windows to run several agents at once) and goes **On Queue**. Genesys Cloud loads widgets at sign-in, so an agent who was already signed in when the setup ran must reload the page once.
 4. Each agent opens the WX-84 panel once, in a chat on the Weather Desk. It links silently (or after one click on **Engage link**). From then on the WX-84 server keeps the link with the refresh token, also across server restarts: the flight recorder shows one `SIGN-IN` per agent and then `TOKEN REFRESH OK` every hour.
-5. **Once, by hand (Genesys has no API for it):** Admin > Contact Center > **Panel Manager** > set the default panel for **Message** interactions to **WX-84 Weather Command Unit**, then **Save**. From then on every chat opens with the WX-84 panel instead of *Profile*. Agents reload Agent Workspace once. The setting is org-wide and applies to every agent with the permission above.
+5. **Once, by hand (Genesys has no API for it):** Admin > Contact Center > **Panel Manager** > set the default panel for **Message** interactions to **WX-84 Weather Command Unit**, then **Save**. From then on every chat opens with the WX-84 panel instead of *Profile* (tested 2026-11-26). Agents reload Agent Workspace once. The setting is org-wide and applies to every agent with the permission above.
 
 Every chat goes to `WX-84 Weather Desk`, and Genesys offers it to any agent of the group who is On Queue and idle. To decide who gets the next chat, put only that agent On Queue.
 
