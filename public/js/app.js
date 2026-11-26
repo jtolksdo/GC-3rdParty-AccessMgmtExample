@@ -181,7 +181,9 @@ async function silentGenesysSignIn() {
       return;
     }
     lamp('genesys', null, 'STANDBY');
-    crt.textContent = '> AUTO-LINK NOT AVAILABLE IN THIS BROWSER. PRESS ENGAGE TO VERIFY OPERATOR IDENTITY_';
+    // Almost always: the browser withholds the Genesys login cookie from embedded
+    // pages (third-party cookies blocked: incognito, a setting, or a company policy).
+    crt.textContent = '> AUTO-LINK NOT AVAILABLE: THIS BROWSER BLOCKS THIRD-PARTY COOKIES IN EMBEDDED APPS. PRESS ENGAGE TO VERIFY OPERATOR IDENTITY_';
   }
 }
 
