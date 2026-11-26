@@ -181,9 +181,15 @@ async function silentGenesysSignIn() {
       return;
     }
     lamp('genesys', null, 'STANDBY');
-    // Almost always: the browser withholds the Genesys login cookie from embedded
-    // pages (third-party cookies blocked: incognito, a setting, or a company policy).
-    crt.textContent = '> AUTO-LINK NOT AVAILABLE: THIS BROWSER BLOCKS THIRD-PARTY COOKIES IN EMBEDDED APPS. PRESS ENGAGE TO VERIFY OPERATOR IDENTITY_';
+    // No answer means Genesys did not recognize the browser and wanted to show its
+    // login page, which refuses to be framed. Two causes: the Genesys login session
+    // has expired although Agent Workspace is still open (it stays signed in on its
+    // own token), or the browser withholds the login cookie from embedded pages
+    // (third-party cookies blocked). Signing in once via Engage fixes the first.
+    // Any other failure reports its own reason.
+    crt.textContent = err.status === 408
+      ? '> AUTO-LINK NOT AVAILABLE: GENESYS LOGIN DID NOT RECOGNIZE THIS BROWSER (LOGIN SESSION EXPIRED, OR THIRD-PARTY COOKIES BLOCKED). PRESS ENGAGE AND SIGN IN ONCE_'
+      : `> AUTO-LINK FAILED: ${err.message}. PRESS ENGAGE TO VERIFY OPERATOR IDENTITY_`;
   }
 }
 

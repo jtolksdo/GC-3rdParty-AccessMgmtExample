@@ -390,7 +390,7 @@ footer { font: 12px var(--mono); color: var(--dim); }
     <h2>Questions partners and executives ask</h2>
     <div class="faq">
       <div class="qa"><h3>Does the partner app ever see the agent's password?</h3><p>No. The password only goes to Genesys Cloud, or to the company's own sign-in behind it. The partner gets a time-limited pass and nothing else.</p></div>
-      <div class="qa"><h3>Does the agent have to sign in twice?</h3><p>No. The agent is already signed in to Genesys, so the pass is issued without a login page. Some browsers (Safari, private windows) block that hidden step; then the agent clicks once and a small window flashes.</p></div>
+      <div class="qa"><h3>Does the agent have to sign in twice?</h3><p>No. The agent is already signed in to Genesys, so the pass is issued without a login page. Some browsers (Safari, private windows) block that hidden step; then the agent clicks once and a small window flashes. And if the Genesys login session has expired while the agent desktop stayed open, that small window asks for the Genesys password once; after that, signing in is silent again.</p></div>
       <div class="qa"><h3>What can the partner do with the pass?</h3><p>Only what its scopes allow, never more than the agent may do, and only for one hour. In WX-84: read the agent's profile and read the conversations this agent can see. Nothing can be changed.</p></div>
       <div class="qa"><h3>An agent leaves the company. What happens?</h3><p>Genesys disables the account, so no new pass is issued. A pass already issued expires within the hour. The partner's own list should be cleaned too; mapping by Genesys group makes that automatic.</p></div>
       <div class="qa"><h3>Who decides what the agent sees in the partner app?</h3><p>The partner, with its own list or policy. Genesys only vouches for who the agent is. Customer data read from Genesys stays under Genesys's rules, because the partner reads it with the agent's own pass.</p></div>
@@ -474,7 +474,7 @@ footer { font: 12px var(--mono); color: var(--dim); }
     { from: 'G', to: 'A', lbl: 'one-time voucher',
       title: 'Genesys recognizes the agent',
       plain: 'The desk recognizes the agent from this morning, so no passport is needed. It hands out a one-time voucher, and only to the gate address registered for WX-84.',
-      tech: `Thanks to the ${T('login-cookie', 'login cookie')}, Genesys skips its login page and sends an ${T('authorization-code', 'authorization code')} to the ${T('redirect-uri', 'redirect URI')}. Signed-out agents, Safari and private windows get the ${T('popup', 'popup fallback')}.` },
+      tech: `Thanks to the ${T('login-cookie', 'login cookie')}, Genesys skips its login page and sends an ${T('authorization-code', 'authorization code')} to the ${T('redirect-uri', 'redirect URI')}. An expired login session, Safari and private windows get the ${T('popup', 'popup fallback')}.` },
     { from: 'A', to: 'G', lbl: 'voucher + secret stub',
       title: 'Voucher and stub are traded',
       plain: 'Genesys sends the agent back to the same WX-84 page. The page takes the secret note out of its locker, deletes it there, and brings it to the desk with the voucher. The desk checks the note against the photo. A stolen voucher on its own is worthless.',
