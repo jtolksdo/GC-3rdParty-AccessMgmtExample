@@ -27,8 +27,9 @@ flowchart LR
   CP -- "custom attribute: location" --> MSG --> FLOW --> Q --> AD
   FLOW -- "asks last name" --> BOT
   AD -- "iframe" --> TUN --> SRV
-  AD -. "PKCE sign-in: hidden iframe, popup as fallback" .-> LOGIN
-  SRV -- "verify token: /users/me" --> API
+  AD -. "sign-in start: hidden iframe, popup as fallback" .-> LOGIN
+  SRV -- "code + client secret, refresh token" --> LOGIN
+  SRV -- "verify token: /users/me, /tokens/me" --> API
   SRV -- "participant data" --> API
   SRV --> TXT
   SRV --> LOG
@@ -37,39 +38,48 @@ flowchart LR
 
 ## Embedded sign-in sequence
 
-The Interaction Widget is an iframe on `apps.usw2.pure.cloud`. WX-84 signs in with **Authorization Code + PKCE** (Genesys stopped issuing new *implicit grant* clients in 2026) and tries two ways, in this order:
+> Partners: the reasoning behind this design, and the traps it avoids, are in the [partner guide](partner-sso-guide.md).
 
-1. **Silent, in a hidden iframe** (no window, no click). When the agent is signed in to Genesys Cloud, `login.usw2.pure.cloud/oauth/authorize` answers with an immediate redirect carrying the code; its login page is never shown. This needs the browser to send the Genesys login cookie (`SameSite=None`) to an embedded page: Chrome does by default, Safari and incognito windows do not.
-2. **Popup, as the fallback** ("Engage link"). If the agent is signed out, Genesys' login page must be shown, and it refuses to be framed (`frame-ancestors 'none'`). The console waits 10 seconds for the silent attempt, or less if the hidden page reports an OAuth error, then offers the popup.
+The Interaction Widget is an iframe on `apps.usw2.pure.cloud`. WX-84 signs agents in with the **Authorization Code grant and the client secret on the WX-84 server** ("backend for frontend"). The browser only carries the one-time code; the server receives the access token **and a refresh token**, and renews the access token itself every hour, without the agent and without the agent's Genesys login session. No PKCE parameters: with a `code_challenge`, Genesys issues no refresh token.
 
-Neither the hidden page nor the popup can hand the result to the console through browser storage: Chrome partitions the console's storage under the top-level site `apps.usw2.pure.cloud`, and if the Genesys login page sends `Cross-Origin-Opener-Policy`, `window.opener` is gone. So the result travels through the WX-84 server under a random, single-use **handoff id** that only the console and its sign-in page know.
+The browser starts the sign-in at the server's `/auth/start` in one of two ways:
+
+1. **Silent, in a hidden iframe** (no window, no click), started only while the panel is visible. When the agent is signed in to Genesys Cloud, `login.usw2.pure.cloud/oauth/authorize` answers with an immediate redirect carrying the code; its login page is never shown. This needs the browser to send the Genesys login cookie (`SameSite=None`) to an embedded page: Chrome does by default, Safari and incognito windows do not.
+2. **Popup, as the fallback** ("Engage link"). If the agent's Genesys login session has ended, Genesys' login page must be shown, and it refuses to be framed (`frame-ancestors 'none'`). The console waits 10 seconds for the silent attempt, or less if it reports an error, then offers the popup, and retries silently once when the agent returns to the window.
+
+Neither the hidden iframe nor the popup can hand the result to the console through browser storage: Chrome partitions the console's storage under the top-level site `apps.usw2.pure.cloud`, and if the Genesys login page sends `Cross-Origin-Opener-Policy`, `window.opener` is gone. So the result travels through the WX-84 server under a random, single-use **handoff id** that only the console knows.
 
 ```mermaid
 sequenceDiagram
   autonumber
-  participant W as WX-84 iframe (widget)
-  participant P as Sign-in page (auth/popup.html): hidden iframe, popup as fallback
-  participant L as login.usw2.pure.cloud
+  participant W as WX-84 console (widget iframe)
+  participant F as Hidden iframe or popup
   participant S as WX-84 server
+  participant L as login.usw2.pure.cloud
   participant A as api.usw2.pure.cloud
 
-  W->>W: console opens, create random handoff id
-  W->>P: hidden iframe /auth/popup.html?silent=1&handoff=… (after a timeout: popup on ENGAGE)
-  P->>P: create PKCE verifier + challenge + state (sessionStorage)
-  P->>L: /oauth/authorize?response_type=code&code_challenge=…
-  L-->>P: redirect ?code=…&state=… (agent already signed in: no prompt)
-  P->>L: POST /oauth/token (code + code_verifier)
-  L-->>P: access_token
-  P->>S: POST /api/session/genesys {accessToken, handoff}
+  W->>W: console opens (visible), create random handoff id
+  W->>F: hidden iframe /auth/start?silent=1&handoff=… (popup on ENGAGE)
+  F->>S: GET /auth/start
+  S-->>F: 302 /oauth/authorize?response_type=code&state=… (state kept on the server, single use; no PKCE)
+  F->>L: /oauth/authorize
+  L-->>F: 302 /auth/callback?code=…&state=… (agent signed in: no prompt)
+  F->>S: GET /auth/callback
+  S->>L: POST /oauth/token (code, Basic client_id:client_secret)
+  L-->>S: access_token (1 h) + refresh_token
   S->>A: GET /api/v2/users/me?expand=organization + GET /api/v2/tokens/me
   A-->>S: id, name, email, organization.id + issuing OAuth client
-  S->>S: pinned org? issued to the WX-84 client? map user (identity.js), create session, park under handoff
-  S-->>P: ok (a popup closes itself; the hidden iframe is removed)
+  S->>S: pinned org? issued to the WX-84 client? map user, create session (stored encrypted), park under handoff
+  S-->>F: 302 /auth/popup.html?status=ok (a popup closes itself)
   loop every second
     W->>S: GET /api/session/handoff/{id}
   end
   S-->>W: WX-84 session token (single use)
   W->>S: GET /api/me, /api/weather, /api/genesys/conversations/{id}/station
+  loop every hour, in the background
+    S->>L: POST /oauth/token (grant_type=refresh_token, Basic auth)
+    L-->>S: new access_token + new refresh_token
+  end
 ```
 
 ## Decisions and trade-offs
@@ -81,14 +91,15 @@ sequenceDiagram
 | **Plain-text file** | Readable by anyone in a demo; diff-able; no install. | SQLite/DB: more realistic, but hides the logic behind tooling. |
 | **Atomic writes** (temp file + rename) | A crash never leaves a half-written permission file. | Direct overwrite. |
 | **Input validation on `|` and line breaks** | Stops a crafted e-mail from injecting an extra "admin" line into the text file. Every storage format has its own injection risk. | None: the most common file-based bug. |
-| **Authorization Code + PKCE** | Implicit grant is deprecated (no new clients in Genesys Cloud since 2026). PKCE needs no client secret in the browser. | Implicit grant; a server-side code flow with a client secret. |
-| **Silent sign-in in a hidden iframe, popup as fallback** | Signed-in agents link without a window or a click; everyone else still gets in. | Popup only: robust, but one click and a flashing window every time. Redirecting the whole console: if the login page refuses framing, the console is gone and cannot fall back. |
+| **Authorization Code grant with the client secret on the server, refresh tokens** | Only this grant gets refresh tokens from Genesys, and only refresh tokens let the server renew access without the agent's Genesys login session. That is what removes repeated sign-ins. The browser never sees a token. | PKCE in the browser (the first version of this demo): no refresh token, so the popup returned every hour. Implicit grant: no new clients since 2026. |
+| **No PKCE parameters in the server-side flow** | With a `code_challenge`, Genesys treats the sign-in as PKCE and sends no refresh token (tested). The code is still protected: redeemable only with the client secret, only at the registered callback, tied to a one-time `state` kept on the server. | PKCE plus secret (OAuth 2.1 recommendation): costs the refresh token, and with it the whole point. |
+| **Sessions stored encrypted** (AES-256-GCM, key derived from the client secret; 12 h idle, 7 days at most) | Restarts and deployments sign nobody out; refresh tokens are credentials and must not sit in plain text. | In-memory sessions: every restart meant a new sign-in for every agent. |
+| **Silent sign-in in a hidden iframe, started only while visible; popup as fallback** | Signed-in agents link without a window or a click; everyone else still gets in. Chrome throttles background timers, so a silent attempt started in a background window times out. | Popup only: robust, but one click and a flashing window every time. Redirecting the whole console: if the login page refuses framing, the console is gone and cannot fall back. |
 | **Token must be issued to the WX-84 OAuth client** (`GET /api/v2/tokens/me`) | Stops "token substitution": a valid token another app in the same org obtained for the agent must not open WX-84. | Checking only user and org. |
 | **Popup + server handoff** | Works despite iframe storage partitioning and COOP. The session token reaches only the iframe that started the flow. | `postMessage` via `window.opener`: breaks under COOP. `BroadcastChannel`: partitioned. |
 | **Token verified by our server** against **our configured region** | The browser could lie. If the verification URL came from the client, an attacker could point it at a fake "Genesys". | Trusting a user id passed in the widget URL: forgeable by anyone. |
 | **Pinned org id** | A valid token from *another* Genesys Cloud org must not unlock anything. | Matching by e-mail only. |
 | **Genesys token stays on the server** ("backend for frontend") | XSS in the console cannot leak a Genesys token. | Token in localStorage. |
-| **WX-84 session ends with the Genesys token; silent renewal two minutes before** (token lifetime 12 h, set on the OAuth client) | A session must never outlive the credential it relies on: with a 12-hour session on a 1-hour token, conversation lookups failed after an hour. Renewal uses the agent's Genesys login session, which can end much sooner than the desktop's own sign-in; then the console falls back to the link screen and the popup. | Refresh tokens: need the Authorization Code grant with a client secret on the server (PKCE clients get none). A 1-hour token: the popup came back every hour. |
 | **Local key only from loopback** | The tunnel makes the console reachable from the internet. Without this check, anyone with the URL could press "admin". | A config flag alone: easy to forget. |
 | **Server listens on 127.0.0.1** | Not reachable from the LAN. Only the tunnel (a local process) forwards traffic. | `0.0.0.0`. |
 | **`frame-ancestors` limited to Genesys domains** | Clickjacking protection: nobody else can embed the console. | No CSP. |
@@ -106,7 +117,8 @@ sequenceDiagram
 | `GET /api/config` | none | Public config (no secrets), stations, sign-in options |
 | `GET /api/login-users` | loopback only | Operator keys for the local sign-in |
 | `POST /api/session/local` | loopback only | Password-less local sign-in |
-| `POST /api/session/genesys` | Genesys token | Verify the token, map the user, create a session (optionally park it under a handoff) |
+| `GET /auth/start` | handoff id | Start a Genesys sign-in (hidden iframe or popup): redirect to Genesys authorize with a one-time state |
+| `GET /auth/callback` | one-time state | Genesys returns here: trade the code for tokens with the client secret, verify, map, create the session, park it under the handoff |
 | `GET /api/session/handoff/:id` | handoff id | Collect a parked sign-in (single use, 2 min) |
 | `GET /api/me` | session | Who am I, which stations, permissions version |
 | `GET /api/weather` | session | Readings for cleared stations only |

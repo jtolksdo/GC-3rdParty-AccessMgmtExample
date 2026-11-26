@@ -11,11 +11,16 @@ Many contact-center tools have their own users and permissions. Embed such a too
 | **WX-84 console** (`public/`, `server/`) | A local web tool styled like a 1980s cockpit. It shows live weather for four stations: Dortmund, Indianapolis, Menlo Park and Melbourne. Four users, four clearances, all stored in **one plain-text file**. |
 | **Maintenance panel** | Admins flip toggle switches to grant or revoke stations. Changes apply to open consoles within seconds. Every sign-in, grant, denial and change is logged by the **flight recorder**. |
 | **Customer page** (`customer/`) | A "Flight Weather Desk" website. The customer picks a station and starts a Genesys Cloud **Web Messaging** chat. **New conversation** ends the chat and clears it from the browser, for the next demo run. |
-| **Genesys Cloud setup** (`genesys/`) | One idempotent script that builds everything in your org: agents, a group, **one queue whose members are that group**, a WebRTC phone per agent, an Architect **inbound message flow** with a name bot, Messenger configuration + deployment, a **PKCE OAuth client** and the **Interaction Widget**. |
+| **Genesys Cloud setup** (`genesys/`) | One idempotent script that builds everything in your org: agents, a group, **one queue whose members are that group**, a WebRTC phone per agent, an Architect **inbound message flow** with a name bot, Messenger configuration + deployment, an **OAuth client whose secret only the WX-84 server knows** and the **Interaction Widget**. |
 
 When the chat reaches the agent, the WX-84 console opens inside the interaction and links itself to the agent's Genesys Cloud sign-in, without a window or a click (where the browser allows it; otherwise one click on "Engage link" opens a popup). Every chat goes to the same queue, so any agent of the group may get it. WX-84 verifies the agent with Genesys Cloud and shows only the stations that agent is cleared for; the others are hidden. It also highlights the station the customer asked about, or flags **ACCESS DENIED** if the agent who took the chat is not cleared for it.
 
-> **Demo software.** No passwords, a text file instead of a database, and an in-memory session store. These are deliberate choices that keep the access-control *logic* readable. See [What this demo does not do](#what-this-demo-intentionally-does-not-do).
+> [!IMPORTANT]
+> **For partners: one sign-in, not many.** Agents sign in to Genesys Cloud once; an embedded partner app must never ask again. WX-84 achieves that with the production pattern: the **Authorization Code grant with the client secret on the partner's server**, **refresh tokens kept and renewed by the server** (no PKCE parameters, or Genesys sends no refresh token), an **encrypted session store** that survives restarts, and a silent link from the agent desktop that starts only while the panel is visible. The agent links WX-84 once, usually without noticing, and stays linked.
+>
+> **Read the [partner guide: one sign-in without repeated logins](docs/partner-sso-guide.md)** before you build your integration. It lists the eight traps we hit while building this demo, with the symptom, the cause and the fix.
+
+> **Demo software.** No passwords for the local operator keys, and a text file instead of a database. These are deliberate choices that keep the access-control *logic* readable. See [What this demo does not do](#what-this-demo-intentionally-does-not-do).
 
 ## See it explained
 
@@ -68,8 +73,8 @@ melbourne    | agent | melbourne                | agent.melbourne@your-org.examp
 2. **Sessions remember *who*, never *what*.** A session stores only the username. Clearances are read from `data/users.txt` on every request. That is why a revoked station locks on the agent's screen within seconds, with no re-login.
 3. **Two ways to prove identity:**
    * **Local operator key**: password-less, for the demo. It is offered **only to a browser on the same computer** (loopback address, no proxy headers). Through a tunnel or proxy it is disabled.
-   * **Genesys Cloud**: OAuth 2.0 Authorization Code + **PKCE**, silently in a hidden iframe, with a popup as the fallback. The server verifies the token **itself** via `GET /api/v2/users/me` and `GET /api/v2/tokens/me` against the region in *its own* config. It checks that the token belongs to **your** org (pinned org id) and was issued to the **WX-84 OAuth client** (no tokens from other apps), then maps the Genesys user to a WX-84 user by **exact e-mail** (`server/identity.js`). No match, an unlinked user or two rows with the same e-mail all mean ACCESS DENIED.
-4. **The console never holds a Genesys token.** The sign-in page hands it straight to the server, which keeps it in the session ("backend for frontend"). The server uses it to read the conversation's participant data: the station the customer picked and the last name they gave the chat bot. Because this runs on the *agent's* token, Genesys Cloud decides whether the agent may see the conversation at all, and WX-84 decides what they may see of the weather.
+   * **Genesys Cloud**: OAuth 2.0 **Authorization Code grant with the client secret on the WX-84 server**, started silently in a hidden iframe (only while the panel is visible), with a popup as the fallback. Genesys sends the one-time code to the server's `/auth/callback`, and the server trades it for an access token **and a refresh token**; it renews the access token itself every hour, without the agent. The server verifies the token **itself** via `GET /api/v2/users/me` and `GET /api/v2/tokens/me` against the region in *its own* config. It checks that the token belongs to **your** org (pinned org id) and was issued to the **WX-84 OAuth client** (no tokens from other apps), then maps the Genesys user to a WX-84 user by **exact e-mail** (`server/identity.js`). No match, an unlinked user or two rows with the same e-mail all mean ACCESS DENIED.
+4. **The browser never holds a Genesys token.** Only the WX-84 server receives tokens and keeps them in the session ("backend for frontend"); sessions are stored encrypted, so a restart signs nobody out. The server uses it to read the conversation's participant data: the station the customer picked and the last name they gave the chat bot. Because this runs on the *agent's* token, Genesys Cloud decides whether the agent may see the conversation at all, and WX-84 decides what they may see of the weather.
 5. **Only Genesys Cloud may frame the console** (`Content-Security-Policy: frame-ancestors`).
 6. **Everything is recorded.** Sign-ins, station access (granted *and* denied) and permission changes go to the flight recorder, shown in the maintenance panel and written to `data/flight-recorder.log`.
 
@@ -114,16 +119,17 @@ server/            Node HTTP server, zero dependencies
   permissions.js     parse / write data/users.txt
   identity.js        Genesys user -> WX-84 user mapping
   genesys.js         server-side token verification
-  sessions.js        in-memory sessions + sign-in handoff
+  genesys-auth.js    sign-in with the client secret, refresh tokens, revoke
+  sessions.js        sessions (encrypted on disk) + sign-in handoff
   weather.js         Open-Meteo client with offline simulation fallback
   audit.js           flight recorder
 public/            the cockpit console (vanilla JS, SVG instruments)
-  auth/popup.html    OAuth PKCE flow against Genesys Cloud (hidden iframe or popup)
+  auth/popup.html    last stop of the sign-in: closes the popup or reports a failed silent link
 customer/          customer website with Genesys Messenger
 genesys/           provisioning script, Archy flow, agent template
 data/              users.example.txt (users.txt + log are created at runtime)
 config/            config.example.json (config.json is written by the setup)
-docs/              architecture, setup guide, demo script
+docs/              partner sign-in guide, architecture, setup guide, demo script, interactive pages
 ```
 
 ## What this demo intentionally does not do
@@ -132,8 +138,8 @@ docs/              architecture, setup guide, demo script
 |---|---|
 | Plain-text permission file | A database or your IdP's groups/roles, with change history |
 | Password-less local sign-in | Remove it, or put it behind real authentication |
-| In-memory sessions (lost on restart, so every agent signs in again) | A shared session store with expiry |
-| A 12-hour Genesys token (PKCE, no refresh token); the WX-84 session ends with it and the console renews it silently two minutes before | Authorization Code grant with a client secret on the server: Genesys then issues refresh tokens, so the server renews tokens without the agent's Genesys login. Revoke on sign-out |
+| Sessions in an encrypted file on one server (key derived from the client secret) | A shared session store for several servers, with the key from a KMS |
+| Client secret in the macOS keychain of the demo Mac | A secrets manager, with rotation |
 | `allowAllDomains: true` on the Messenger deployment | List your real website domains |
 | Identity mapping by e-mail | Map by immutable Genesys user id, or by Genesys group/role membership |
 | HTTPS via a developer tunnel | Proper hosting with your own domain and certificate |

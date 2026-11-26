@@ -39,10 +39,9 @@ const NAMES = {
   // no longer sends chats there.
   retiredQueues: ['WX-84 Menlo Park', 'WX-84 Indianapolis', 'WX-84 Melbourne', 'WX-84 Supervisor'],
 };
-// Agent tokens last a working day. The WX-84 session lives as long as the token,
-// so the console needs Genesys' login (silent or popup) at most once a day per
-// agent. Genesys' login session itself can end much sooner (we saw about an hour).
-const AGENT_TOKEN_SECONDS = 12 * 60 * 60;
+// Agent access tokens are short-lived on purpose: the WX-84 server renews them
+// with the refresh token, so a short lifetime costs the agent nothing.
+const AGENT_TOKEN_SECONDS = 60 * 60;
 const FLOW_DIR = path.join(ROOT, 'genesys', 'flow');
 // Deployed in this order: the station router calls the name bot by name.
 const FLOWS = [
@@ -540,7 +539,7 @@ async function ensureMessenger(flow) {
 }
 
 async function ensureOAuthClient(redirectUris) {
-  step('OAuth client for the agent console (Authorization Code + PKCE)');
+  step('OAuth client for the agent console (Authorization Code with client secret + PKCE, refresh tokens)');
   const clients = await listAll('/api/v2/oauth/clients');
   let client = clients.find((x) => x.name === NAMES.oauthClient);
   const body = {
@@ -562,14 +561,53 @@ async function ensureOAuthClient(redirectUris) {
     if ((urisChanged || lifetimeChanged) && !DRY_RUN) {
       client = await gc('PUT', `/api/v2/oauth/clients/${client.id}`, { ...body, roleIds: client.roleIds });
       if (urisChanged) ok(`updated redirect URIs: ${redirectUris.join(', ')}`);
-      if (lifetimeChanged) ok(`agent token lifetime set to ${AGENT_TOKEN_SECONDS / 3600} hours`);
+      if (lifetimeChanged) ok(`agent access token lifetime set to ${AGENT_TOKEN_SECONDS / 60} minutes (renewed by the server)`);
     } else if (urisChanged || lifetimeChanged) {
       plan('update redirect URIs / agent token lifetime');
     } else {
       same(`OAuth client exists (${client.id})`);
     }
   }
+  if (client && !DRY_RUN) await storeAgentSecret(client);
   return client;
+}
+
+/**
+ * The WX-84 server needs the client's secret to trade codes for tokens and to
+ * renew them. It goes into the macOS keychain (service "wx84-genesys-setup",
+ * account "agent-client-secret"), never into a file and never onto the screen.
+ */
+async function storeAgentSecret(client) {
+  const stored = process.env.GENESYS_AGENT_CLIENT_SECRET || keychain('agent-client-secret');
+  if (stored && await secretAccepted(client.id, stored)) return same('  client secret available to the WX-84 server (accepted by Genesys)');
+  if (process.platform !== 'darwin') {
+    return warn('set GENESYS_AGENT_CLIENT_SECRET for the WX-84 server (Admin > Integrations > OAuth > WX-84 Agent Console > Client Secret)');
+  }
+  // Genesys never shows an existing secret through the API, it can only issue a
+  // new one. Nothing else uses this client's secret, so a new one is safe.
+  const fresh = await gc('POST', `/api/v2/oauth/clients/${client.id}/secret`);
+  if (!fresh.secret) return warn('Genesys did not issue a client secret - the WX-84 server cannot sign agents in');
+  // Passed as an argument for a moment; the keychain has no non-interactive stdin input.
+  execFileSync('security', ['add-generic-password', '-U', '-s', KEYCHAIN_SERVICE, '-a', 'agent-client-secret', '-w', fresh.secret], { stdio: 'ignore' });
+  ok('  new client secret stored in the macOS keychain - restart the WX-84 server to pick it up');
+}
+
+/**
+ * Does Genesys accept this client id + secret? A token request with a made-up
+ * code answers "invalid_client" for a wrong secret and "invalid_grant" (wrong
+ * code) for a correct one - without signing anybody in.
+ */
+async function secretAccepted(clientId, secret) {
+  const res = await fetch(`https://login.${region}/oauth/token`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${clientId}:${secret}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({ grant_type: 'authorization_code', code: 'wx84-secret-probe', redirect_uri: 'http://localhost/probe' }),
+  });
+  const body = await res.json().catch(() => ({}));
+  return body.error !== 'invalid_client' && res.status !== 401;
 }
 
 async function ensureIntegration(publicUrl, group, queue) {
@@ -674,7 +712,8 @@ async function main() {
   await retireOldQueues();
   const messenger = await ensureMessenger(flow);
 
-  const redirectUris = [...new Set([`http://localhost:${cfg.port}/auth/popup.html`, `${publicUrl}/auth/popup.html`])];
+  // Genesys sends the agent back to the WX-84 server, which trades the code for tokens.
+  const redirectUris = [...new Set([`http://localhost:${cfg.port}/auth/callback`, `${publicUrl}/auth/callback`])];
   const client = await ensureOAuthClient(redirectUris);
   await ensureIntegration(publicUrl, group, queue);
 

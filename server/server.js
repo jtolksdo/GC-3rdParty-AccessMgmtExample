@@ -14,6 +14,7 @@ import * as sessions from './sessions.js';
 import * as audit from './audit.js';
 import { getWeather } from './weather.js';
 import { verifyGenesysToken, genesysConfigured, HttpError } from './genesys.js';
+import * as auth from './genesys-auth.js';
 import { findToolUser } from './identity.js';
 import { cleanCustomerName } from './customer.js';
 
@@ -108,9 +109,7 @@ function describeMe(ctx) {
     role: ctx.user.role,
     stations: perms.allowedStations(ctx.user),
     source: ctx.session.source,
-    genesys: ctx.session.genesys ? { name: ctx.session.genesys.name, email: ctx.session.genesys.email } : null,
-    expiresAt: ctx.session.expiresAt, // Genesys sign-ins only: when the console must have renewed
-    permissionsVersion: perms.permissionsVersion(),
+    genesys: ctx.session.genesys ? { name: ctx.session.genesys.name, email: ctx.session.genesys.email } : null,    permissionsVersion: perms.permissionsVersion(),
   };
 }
 
@@ -133,9 +132,9 @@ route('GET', /^\/api\/config$/, (req) => {
     appName: 'WX-84 Weather Command Unit',
     localLogin: localLoginAllowed(req),
     genesys: {
-      configured: genesysConfigured(cfg),
+      // Sign-in needs the org, the OAuth client and its secret on this server.
+      configured: genesysConfigured(cfg) && Boolean(auth.agentClientSecret()),
       region: cfg.genesys.region,
-      oauthClientId: cfg.genesys.oauthClientId,
     },
     messenger: {
       configured: Boolean(cfg.genesys.messengerDeploymentId),
@@ -162,42 +161,6 @@ route('POST', /^\/api\/session\/local$/, async (req) => {
   return { token };
 });
 
-route('POST', /^\/api\/session\/genesys$/, async (req) => {
-  const { accessToken, handoff, expiresIn } = await readJson(req);
-  if (handoff !== undefined && !sessions.HANDOFF_ID.test(String(handoff))) throw new HttpError(400, 'Invalid handoff id');
-  const park = (status, body) => handoff && sessions.parkHandoff(handoff, { status, body });
-  try {
-    const cfg = getConfig();
-    const genesysUser = await verifyGenesysToken(accessToken, cfg);
-    const user = findToolUser(genesysUser, perms.getUsers());
-    if (!user) {
-      audit.record({ actor: genesysUser.email || genesysUser.id, source: 'genesys', action: 'SIGN-IN', result: 'DENIED', detail: 'no WX-84 account mapped' });
-      throw new HttpError(403, `ACCESS DENIED - no WX-84 account for ${genesysUser.name} <${genesysUser.email}>`);
-    }
-    // The session ends one minute before the Genesys token it relies on (1 hour
-    // in this demo), so no Genesys call ever runs on an expired token. The
-    // console renews it silently before that. expiresIn comes from Genesys'
-    // token response; a wrong value only shortens or lengthens our own session,
-    // the token itself is still checked by Genesys on every call.
-    const cap = Number(process.env.WX84_GENESYS_SESSION_MAX_SECONDS) || Infinity; // shorter sessions, e.g. for testing
-    const lifetime = Math.min(Math.max(Number(expiresIn) || 3600, 120), 12 * 3600, cap);
-    const token = sessions.createSession({
-      username: user.username,
-      source: 'genesys',
-      genesys: { id: genesysUser.id, name: genesysUser.name, email: genesysUser.email },
-      genesysAccessToken: accessToken,
-      expiresAt: Date.now() + (Math.max(lifetime, 120) - 60) * 1000,
-    });
-    audit.record({ actor: user.username, source: 'genesys', action: 'SIGN-IN', result: 'GRANTED', detail: `as ${genesysUser.name} <${genesysUser.email}>` });
-    park(200, { token });
-    // With a handoff, the session token goes ONLY to the iframe that collects it.
-    return handoff ? { ok: true, username: user.username } : { token };
-  } catch (err) {
-    if (err instanceof HttpError) park(err.status, { error: err.message });
-    throw err;
-  }
-});
-
 route('GET', /^\/api\/session\/handoff\/([A-Za-z0-9_-]{22,64})$/, (req, res, [id]) => {
   const result = sessions.collectHandoff(id);
   if (!result) return { pending: true };
@@ -207,6 +170,8 @@ route('GET', /^\/api\/session\/handoff\/([A-Za-z0-9_-]{22,64})$/, (req, res, [id
 
 route('DELETE', /^\/api\/session$/, (req) => {
   const ctx = authenticate(req);
+  // Revoke our Genesys token too; the agent desktop's own token is not affected.
+  if (ctx.session.tokens?.access) auth.revokeToken(ctx.session.tokens.access, getConfig());
   sessions.deleteSession(ctx.token);
   audit.record({ actor: ctx.user.username, source: ctx.session.source, action: 'SIGN-OUT', result: 'OK' });
   return { ok: true };
@@ -246,7 +211,7 @@ route('GET', /^\/api\/genesys\/conversations\/([^/]+)\/station$/, async (req, re
   if (!UUID.test(conversationId)) throw new HttpError(400, 'Invalid conversation id');
   const cfg = getConfig();
   const r = await fetch(`https://api.${cfg.genesys.region}/api/v2/conversations/${conversationId}`, {
-    headers: { Authorization: `Bearer ${ctx.session.genesysAccessToken}` },
+    headers: { Authorization: `Bearer ${await genesysAccess(ctx)}` },
     signal: AbortSignal.timeout(8000),
   });
   if (r.status === 401) throw new HttpError(401, 'Genesys session expired - please reconnect');
@@ -304,6 +269,132 @@ route('GET', /^\/api\/admin\/audit$/, (req) => {
   return { entries: audit.recent(80) };
 });
 
+// ---------------------------------------------------- Genesys sign-in flow ---
+// See server/genesys-auth.js. The browser (hidden iframe or popup) starts at
+// /auth/start, Genesys sends it back to /auth/callback with a one-time code,
+// and this server trades the code for tokens with its client secret.
+
+/** The registered callback on this server: localhost for this Mac, else the public URL. */
+function callbackUrl(req, cfg) {
+  const base = isLocalRequest(req) ? `http://localhost:${getConfig().port}` : (cfg.publicUrl || `https://${req.headers.host}`);
+  return `${base.replace(/\/+$/, '')}/auth/callback`;
+}
+
+function redirect(res, location) {
+  res.writeHead(302, { Location: location, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+  res.end();
+}
+
+/** Every sign-in ends on a small status page (it closes the popup, or tells the console a silent attempt failed). */
+function finishSignIn(res, { silent, error = null, code = 0 }) {
+  const query = new URLSearchParams({ status: error ? 'error' : 'ok' });
+  if (silent) query.set('silent', '1');
+  if (error) { query.set('message', error); query.set('code', String(code)); }
+  redirect(res, `/auth/popup.html?${query}`);
+}
+
+function startSignIn(req, res, url) {
+  const handoff = url.searchParams.get('handoff') || '';
+  const silent = url.searchParams.get('silent') === '1';
+  if (!sessions.HANDOFF_ID.test(handoff)) return finishSignIn(res, { silent, error: 'INVALID HANDOFF - START FROM THE WX-84 CONSOLE' });
+  const cfg = getConfig();
+  if (!genesysConfigured(cfg) || !auth.agentClientSecret()) {
+    const error = 'GENESYS SIGN-IN NOT CONFIGURED ON THIS SERVER - RUN npm run genesys:setup';
+    sessions.parkHandoff(handoff, { status: 503, body: { error } });
+    return finishSignIn(res, { silent, error, code: 503 });
+  }
+  return redirect(res, auth.authorizeUrl({ handoff, silent, redirectUri: callbackUrl(req, cfg), cfg }));
+}
+
+async function completeSignIn(req, res, url) {
+  const request = auth.takePending(url.searchParams.get('state'));
+  if (!request) return finishSignIn(res, { silent: false, error: 'SIGN-IN EXPIRED OR ALREADY USED - START AGAIN FROM THE CONSOLE' });
+  const { handoff, silent } = request;
+  const park = (status, body) => sessions.parkHandoff(handoff, { status, body });
+  try {
+    if (url.searchParams.get('error')) {
+      throw new HttpError(401, `GENESYS: ${url.searchParams.get('error_description') || url.searchParams.get('error')}`);
+    }
+    const cfg = getConfig();
+    const tokens = await auth.exchangeCode({ code: url.searchParams.get('code') || '', redirectUri: request.redirectUri }, cfg);
+    const genesysUser = await verifyGenesysToken(tokens.access, cfg);
+    const user = findToolUser(genesysUser, perms.getUsers());
+    if (!user) {
+      audit.record({ actor: genesysUser.email || genesysUser.id, source: 'genesys', action: 'SIGN-IN', result: 'DENIED', detail: 'no WX-84 account mapped' });
+      auth.revokeToken(tokens.access, cfg);
+      throw new HttpError(403, `ACCESS DENIED - no WX-84 account for ${genesysUser.name} <${genesysUser.email}>`);
+    }
+    const token = sessions.createSession({
+      username: user.username,
+      source: 'genesys',
+      genesys: { id: genesysUser.id, name: genesysUser.name, email: genesysUser.email },
+      tokens,
+    });
+    audit.record({ actor: user.username, source: 'genesys', action: 'SIGN-IN', result: 'GRANTED',
+      detail: `as ${genesysUser.name} <${genesysUser.email}>${tokens.refresh ? '' : ' - Genesys sent no refresh token'}` });
+    // With a handoff, the session token goes ONLY to the iframe that collects it.
+    park(200, { token });
+    return finishSignIn(res, { silent });
+  } catch (err) {
+    const status = err instanceof HttpError ? err.status : 500;
+    if (status === 500) console.error('[auth]', err);
+    const error = status === 500 ? 'Internal error' : err.message;
+    park(status, { error });
+    return finishSignIn(res, { silent, error, code: status });
+  }
+}
+
+// -------------------------------------------------- Genesys token renewal ---
+// The access token is short-lived (1 hour). The server renews it with the
+// refresh token before it expires: proactively once a minute in the
+// background, and on demand before a Genesys call. Neither needs the agent or
+// the agent's Genesys login session. If renewal is refused (refresh token
+// expired or revoked, agent deactivated in Genesys), the Genesys link has
+// ended: the session ends and the console relinks.
+const REFRESH_MARGIN_MS = 5 * 60 * 1000;
+const MAX_TOKEN_AGE_MS = (Number(process.env.WX84_GENESYS_TOKEN_MAX_AGE_SECONDS) || 0) * 1000; // testing: renew early
+const renewalDue = (t, now = Date.now()) => t.expiresAt - now < REFRESH_MARGIN_MS || (MAX_TOKEN_AGE_MS > 0 && now - t.issuedAt > MAX_TOKEN_AGE_MS);
+const renewing = new Map(); // session token -> promise (one renewal per session at a time)
+
+function renew(sessionToken, session) {
+  if (renewing.has(sessionToken)) return renewing.get(sessionToken);
+  const job = (async () => {
+    const cfg = getConfig();
+    try {
+      // Without a refresh token the link cannot be renewed: end it while the
+      // token still works, so the console relinks before anything fails.
+      if (!session.tokens.refresh) throw new HttpError(401, 'Genesys issued no refresh token');
+      session.tokens = await auth.refreshTokens(session.tokens.refresh, cfg);
+      sessions.changed();
+      audit.record({ actor: session.username, source: 'genesys', action: 'TOKEN REFRESH', result: 'OK' });
+    } catch (err) {
+      if (err.status !== 401) throw err; // Genesys unreachable: keep the session, try again later
+      audit.record({ actor: session.username, source: 'genesys', action: 'TOKEN REFRESH', result: 'FAILED', detail: err.message });
+      sessions.deleteSession(sessionToken);
+      throw new HttpError(401, 'Genesys link ended - relinking');
+    } finally {
+      renewing.delete(sessionToken);
+    }
+  })();
+  renewing.set(sessionToken, job);
+  return job;
+}
+
+/** The Genesys access token for this session, renewed first if it is about to expire. */
+async function genesysAccess(ctx) {
+  const t = ctx.session.tokens;
+  if (!t) throw new HttpError(401, 'No Genesys link for this session');
+  if (!renewalDue(t)) return t.access;
+  await renew(ctx.token, ctx.session);
+  return ctx.session.tokens.access;
+}
+
+setInterval(() => {
+  for (const [sessionToken, session] of sessions.genesysSessions()) {
+    if (renewalDue(session.tokens)) renew(sessionToken, session).catch(() => { /* logged in the flight recorder */ });
+  }
+}, 60 * 1000).unref();
+
 // ----------------------------------------------------------- static files ---
 
 function serveStatic(req, res, pathname) {
@@ -333,7 +424,17 @@ function serveStatic(req, res, pathname) {
 // ----------------------------------------------------------------- server ---
 
 const server = http.createServer(async (req, res) => {
-  const { pathname } = new URL(req.url, 'http://localhost');
+  const url = new URL(req.url, 'http://localhost');
+  const { pathname } = url;
+  if (pathname === '/auth/start' || pathname === '/auth/callback') {
+    if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
+    try {
+      return await (pathname === '/auth/start' ? startSignIn : completeSignIn)(req, res, url);
+    } catch (err) {
+      console.error('[auth]', err);
+      return res.headersSent ? res.end() : sendJson(res, 500, { error: 'Internal error' });
+    }
+  }
   if (!pathname.startsWith('/api/')) {
     if (req.method !== 'GET' && req.method !== 'HEAD') return sendJson(res, 405, { error: 'Method not allowed' });
     return serveStatic(req, res, pathname);
@@ -351,6 +452,10 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+// Sessions survive restarts in an encrypted file; the key comes from the OAuth
+// client secret, which never sits in a file itself.
+const sessionStore = sessions.enablePersistence(path.join(ROOT, 'data', 'sessions.enc'), auth.agentClientSecret());
+
 const { port } = getConfig();
 server.listen(port, HOST, () => {
   const cfg = getConfig();
@@ -361,5 +466,7 @@ server.listen(port, HOST, () => {
   console.log(`  Permissions     ${path.relative(ROOT, perms.USERS_FILE)} (${perms.getUsers().length} users)`);
   console.log(`  Local sign-in   ${cfg.allowLocalLogin ? 'enabled (this computer only)' : 'disabled'}`);
   console.log(`  Genesys Cloud   ${genesysConfigured(cfg) ? `configured (${cfg.genesys.region})` : 'not configured - run npm run genesys:setup'}`);
+  console.log(`  Client secret   ${auth.agentClientSecret() ? 'available (keychain or env)' : 'missing - run npm run genesys:setup'}`);
+  console.log(`  Sessions        ${sessionStore}`);
   console.log(`  Messenger       ${cfg.genesys.messengerDeploymentId ? 'configured' : 'not configured'}\n${line}\n`);
 });

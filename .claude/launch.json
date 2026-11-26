@@ -8,9 +8,9 @@
       "port": 3000
     },
     {
-      "name": "wx84-short-sessions",
+      "name": "wx84-fast-refresh",
       "runtimeExecutable": "env",
-      "runtimeArgs": ["WX84_GENESYS_SESSION_MAX_SECONDS=300", "npm", "start"],
+      "runtimeArgs": ["WX84_GENESYS_TOKEN_MAX_AGE_SECONDS=120", "npm", "start"],
       "port": 3000
     }
   ]

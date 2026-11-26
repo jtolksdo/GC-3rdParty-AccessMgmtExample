@@ -21,7 +21,6 @@ const state = {
   customerName: null, // from the chat bot, shown only - never stored
   timers: [],
   cautionTimer: null,
-  renewTimer: null,
   autoLink: 'idle', // silent sign-in: idle | running | failed
   engaging: false,  // the "Engage link" popup flow is running
 };
@@ -168,7 +167,7 @@ async function silentGenesysSignIn() {
   const crt = $('#link-crt');
   const handoff = newHandoffId();
   const failed = new AbortController();
-  const stop = startSilentSignIn(handoff, (reason) => failed.abort(reason));
+  const stop = startSilentSignIn(handoff, ({ reason, status }) => failed.abort(new ApiError(status, reason)));
   lamp('genesys', 'amber', 'LINKING', { blink: true });
   crt.textContent = '> AUTO-LINK: VERIFYING OPERATOR IDENTITY WITH GENESYS CLOUD...';
   try {
@@ -235,17 +234,14 @@ async function genesysSignIn(crt) {
 $('#btn-engage').addEventListener('click', () => genesysSignIn($('#link-crt')));
 $('#btn-genesys-login').addEventListener('click', () => genesysSignIn($('#login-crt')));
 
-// A Genesys sign-in's WX-84 session ends with the Genesys token (1 hour). Two
-// minutes before that, the console signs in again silently in the background
-// and swaps its ticket, so the agent never sees the link screen. If renewal
-// fails (Genesys login session gone), the session ends on time and the console
-// falls back to the link screen, where silent sign-in or "Engage" takes over.
-const RENEW_BEFORE_MS = 2 * 60 * 1000;
-
+// The Genesys token is renewed by the WX-84 server with its refresh token, so
+// the console signs in once and stays linked. It only links again when the
+// server says the Genesys link has ended (HTTP 401).
+//
 // Chrome throttles timers in background windows (about once a minute), so a
 // silent sign-in started there runs out of time without finishing. Silent
-// sign-in and renewal therefore wait until the panel is visible, and coming
-// back to the window checks the session at once.
+// sign-in therefore waits until the panel is visible, and coming back to the
+// window checks the session at once.
 let onNextVisible = null;
 function whenVisible(fn) {
   if (!document.hidden) return fn();
@@ -262,34 +258,7 @@ document.addEventListener('visibilitychange', () => {
   if (state.embedded && state.autoLink === 'failed' && !state.engaging) silentGenesysSignIn();
 });
 
-function scheduleRenewal() {
-  clearTimeout(state.renewTimer);
-  if (state.me?.source !== 'genesys' || !state.me.expiresAt) return;
-  const wait = Math.max(state.me.expiresAt - Date.now() - RENEW_BEFORE_MS, 30 * 1000);
-  state.renewTimer = setTimeout(renewGenesysLink, wait);
-}
-
-async function renewGenesysLink() {
-  if (document.hidden) return whenVisible(renewGenesysLink);
-  if (state.me?.source !== 'genesys') return;
-  const handoff = newHandoffId();
-  const failed = new AbortController();
-  const stop = startSilentSignIn(handoff, (reason) => failed.abort(reason));
-  try {
-    const { token } = await waitForHandoff(handoff, { timeoutMs: SILENT_TIMEOUT_MS, signal: failed.signal });
-    setToken(token);
-    state.me = await api('/api/me');
-    scheduleRenewal();
-    say('GENESYS LINK RENEWED');
-  } catch (err) {
-    if (err.message !== 'SUPERSEDED') say('GENESYS LINK RENEWAL FAILED - CONSOLE WILL ASK TO RELINK');
-  } finally {
-    stop();
-  }
-}
-
 async function signOut(reason = 'OPERATOR DISENGAGED') {
-  clearTimeout(state.renewTimer);
   try { await api('/api/session', { method: 'DELETE' }); } catch { /* already gone */ }
   clearToken();
   maintenance.close();
@@ -307,7 +276,6 @@ async function enterCockpit() {
   buildModules();
   await refreshWeather();
   startPolling();
-  scheduleRenewal();
   if (state.me.source === 'genesys' && state.conversationId) checkConversation();
   say(`OPERATOR ${state.me.username.toUpperCase()} ONLINE - ${state.me.stations.length} OF ${state.stations.length} STATIONS CLEARED`);
 }

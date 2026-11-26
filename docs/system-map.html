@@ -261,7 +261,7 @@ footer { color: var(--faint); font: 11.5px var(--mono); }
         <rect class="zone browser" x="20" y="150" width="190" height="222" rx="12"/>
         <text class="zlabel" x="36" y="174">CUSTOMER BROWSER</text>
         <rect class="zone gc" x="240" y="56" width="360" height="414" rx="12"/>
-        <text class="zlabel gc" x="584" y="80" text-anchor="end">GENESYS CLOUD · usw2</text>
+        <text class="zlabel gc" x="256" y="465">GENESYS CLOUD · usw2</text>
         <rect class="zone browser" x="630" y="56" width="230" height="414" rx="12"/>
         <text class="zlabel" x="646" y="80">AGENT BROWSER · WORKSPACE</text>
         <rect class="zone partner" x="978" y="56" width="208" height="324" rx="12"/>
@@ -290,9 +290,10 @@ footer { color: var(--faint); font: 11.5px var(--mono); }
         <g class="edge" data-edge="e-offer"><path class="hit" d="M578,424 H652"/><path class="ln" d="M578,424 H652"/><text class="lbl" x="615" y="416" text-anchor="middle">offers chat</text></g>
         <g class="edge" data-edge="e-open"><path class="hit" d="M745,396 V252"/><path class="ln" d="M745,396 V252"/><text class="lbl" x="755" y="328">opens widget</text></g>
         <g class="edge" data-edge="e-start"><path class="hit" d="M745,196 V148"/><path class="ln" d="M745,196 V148"/><text class="lbl" x="755" y="176">starts sign-in</text></g>
-        <g class="edge both" data-edge="e-auth"><path class="hit" d="M652,122 H578"/><path class="ln" d="M652,122 H578"/><text class="lbl" x="615" y="113" text-anchor="middle">token</text></g>
-        <g class="edge" data-edge="e-handoff"><path class="hit" d="M838,122 H994"/><path class="ln" d="M838,122 H994"/><text class="lbl" x="923" y="113" text-anchor="middle">token + handoff</text></g>
+        <g class="edge both" data-edge="e-auth"><path class="hit" d="M652,122 H578"/><path class="ln" d="M652,122 H578"/><text class="lbl" x="615" y="113" text-anchor="middle">voucher</text></g>
+        <g class="edge" data-edge="e-handoff"><path class="hit" d="M838,122 H994"/><path class="ln" d="M838,122 H994"/><text class="lbl" x="923" y="113" text-anchor="middle">start, voucher</text></g>
         <g class="edge both" data-edge="e-page"><path class="hit" d="M838,224 H994"/><path class="ln" d="M838,224 H994"/><text class="lbl" x="923" y="243" text-anchor="middle">page, API calls</text></g>
+        <g class="edge both" data-edge="e-token"><path class="hit" d="M1130,96 V48 H503 V96"/><path class="ln" d="M1130,96 V48 H503 V96"/><text class="lbl" x="745" y="66" text-anchor="middle">voucher + secret → pass + refresh token</text></g>
         <g class="edge" data-edge="e-verify"><path class="hit" d="M1150,96 V40 H337 V96"/><path class="ln" d="M1150,96 V40 H337 V96"/><text class="lbl" x="744" y="31" text-anchor="middle">users/me · tokens/me · conversation  (direct, never through a tunnel)</text></g>
         <g class="edge" data-edge="e-perm"><path class="hit" d="M1040,252 V300"/><path class="ln" d="M1040,252 V300"/><text class="lbl" x="1048" y="281">every request</text></g>
         <g class="edge" data-edge="e-wx"><path class="hit" d="M1150,252 V410"/><path class="ln" d="M1150,252 V410"/><text class="lbl" x="1142" y="396" text-anchor="end">forecast</text></g>
@@ -305,7 +306,7 @@ footer { color: var(--faint); font: 11.5px var(--mono); }
         <g class="node" id="n-bot"><rect x="262" y="196" width="316" height="56" rx="6"/><text class="t" x="420" y="219" text-anchor="middle">WX-84 Name Collector</text><text class="s" x="420" y="237" text-anchor="middle">bot flow</text></g>
         <g class="node" id="n-router"><rect x="262" y="296" width="316" height="56" rx="6"/><text class="t" x="420" y="319" text-anchor="middle">WX-84 Station Router</text><text class="s" x="420" y="337" text-anchor="middle">inbound message flow</text></g>
         <g class="node" id="n-queues"><rect x="262" y="396" width="316" height="56" rx="6"/><text class="t" x="420" y="419" text-anchor="middle">WX-84 Weather Desk</text><text class="s" x="420" y="437" text-anchor="middle">queue · members: group WX-84 Agents</text></g>
-        <g class="node" id="n-frame"><rect x="652" y="96" width="186" height="52" rx="6"/><text class="t" x="745" y="118" text-anchor="middle">Hidden sign-in frame</text><text class="s" x="745" y="136" text-anchor="middle">PKCE · auth/popup.html</text></g>
+        <g class="node" id="n-frame"><rect x="652" y="96" width="186" height="52" rx="6"/><text class="t" x="745" y="118" text-anchor="middle">Hidden sign-in frame</text><text class="s" x="745" y="136" text-anchor="middle">auth/start · auth/callback</text></g>
         <g class="node" id="n-widget"><rect x="652" y="196" width="186" height="56" rx="6"/><text class="t" x="745" y="219" text-anchor="middle">WX-84 widget</text><text class="s" x="745" y="237" text-anchor="middle">Interaction Widget</text></g>
         <g class="node" id="n-chat"><rect x="652" y="396" width="186" height="56" rx="6"/><text class="t" x="745" y="419" text-anchor="middle">Chat</text><text class="s" x="745" y="437" text-anchor="middle">customer conversation</text></g>
         <g class="node" id="n-server"><rect x="994" y="96" width="176" height="156" rx="6"/><text class="t" x="1082" y="160" text-anchor="middle">WX-84 server</text><text class="s" x="1082" y="179" text-anchor="middle">Node · zero deps</text><text class="s demo-only" x="1082" y="196" text-anchor="middle">localhost:3000</text><text class="s prod-only" x="1082" y="196" text-anchor="middle">wx84.partner.example</text></g>
@@ -322,7 +323,7 @@ footer { color: var(--faint); font: 11.5px var(--mono); }
       <span class="demo-only"><i class="sw hazard"></i>demo only</span>
       <span><i class="sw hot"></i>selected step</span>
     </div>
-    <figcaption><b>Every arrow into WX-84 starts in the agent's browser.</b> Genesys Cloud never calls the partner. WX-84 itself only makes outgoing calls, to the Genesys Platform API and to Open-Meteo, so in production it is an ordinary HTTPS website with no inbound integration.</figcaption>
+    <figcaption><b>Every arrow into WX-84 starts in the agent's browser.</b> Genesys Cloud never calls the partner. WX-84 itself only makes outgoing calls: to Genesys’ login (code exchange and hourly token renewal), to the Genesys Platform API and to Open-Meteo, so in production it is an ordinary HTTPS website with no inbound integration.</figcaption>
   </figure>
 
   <div class="steps">
@@ -401,11 +402,13 @@ footer { color: var(--faint); font: 11.5px var(--mono); }
           <tr><th scope="row">Customer page</th><td><span class="demo-tag">DEMO ONLY</span>Served by WX-84 at <code>/customer/</code></td><td>The company's own website with the Messenger snippet</td></tr>
           <tr><th scope="row">Messenger domains</th><td><span class="demo-tag">DEMO ONLY</span>All domains allowed, because the URL keeps changing</td><td>Only the company's domains</td></tr>
           <tr><th scope="row">Admin access</th><td><span class="demo-tag">DEMO ONLY</span>Password-less operator keys, on the laptop only and switched off for tunnelled requests</td><td>Genesys sign-in, like every agent</td></tr>
+          <tr><th scope="row">Sessions</th><td>Encrypted file on the laptop, survives restarts</td><td>A shared store for several servers, key from a KMS</td></tr>
+          <tr><th scope="row">Client secret</th><td>macOS keychain</td><td>A secrets manager, with rotation</td></tr>
           <tr><th scope="row">Unchanged</th><td class="keep" colspan="2">OAuth client, Interaction Widget, flows and queues, the sign-in steps, the three checks, per-request permissions, the flight recorder</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="also">Also simplified in the demo, independent of the tunnel: sessions live in memory, so a restart signs everyone out; the 12-hour Genesys token is renewed silently through the agent's Genesys login, which can expire sooner; the code is exchanged for the token in the browser. A production build would add a shared session store and a server-side exchange with refresh tokens.</p>
+    <p class="also">The sign-in itself is already production-grade: the client secret and refresh tokens stay on the server, the access token is renewed every hour without the agent, and sessions survive restarts. How partners build the same: <a href="https://github.com/jtolksdo/GC-3rdParty-AccessMgmtExample/blob/main/docs/partner-sso-guide.md">partner guide</a>.</p>
   </section>
 
   <section>
@@ -413,7 +416,7 @@ footer { color: var(--faint); font: 11.5px var(--mono); }
     <p class="intro">One idempotent script on the laptop, using a Client Credentials client whose secret stays in the macOS keychain. All names start with WX-84.</p>
     <dl class="objects">
       <dt>Interaction Widget</dt><dd><b>WX-84 Weather Command Unit</b><span>The panel in Agent Workspace (cube icon). Integration type <code>embedded-client-app-interaction-widget</code> with URL, sandbox, group and queue filter.</span></dd>
-      <dt>OAuth client</dt><dd><b>WX-84 Agent Console (PKCE)</b><span>Authorization Code with PKCE, no client secret. Redirects to <code>auth/popup.html</code>.</span></dd>
+      <dt>OAuth client</dt><dd><b>WX-84 Agent Console</b><span>Authorization Code grant with the client secret on the WX-84 server (kept in the macOS keychain); refresh tokens renew access every hour. Redirects to <code>auth/callback</code>.</span></dd>
       <dt>Group</dt><dd><b>WX-84 Agents</b><span>The member list of the queue, and the only people who see the widget.</span></dd>
       <dt>Queue</dt><dd><b>WX-84 Weather Desk</b><span>Every customer chat. Members come from the group, so any agent may get any chat.</span></dd>
       <dt>Flows</dt><dd><b>WX-84 Station Router · WX-84 Name Collector</b><span>The router calls the bot for the last name, then sends every chat to the Weather Desk.</span></dd>
@@ -439,17 +442,20 @@ footer { color: var(--faint); font: 11.5px var(--mono); }
     signin: { name: 'Agent sign-in', steps: [
       { e: 'e-open', t: 'The widget opens', d: 'For a chat on the WX-84 Weather Desk queue, Agent Workspace shows the Interaction Widget <b>WX-84 Weather Command Unit</b>. Its URL carries the conversation id.' },
       { e: 'e-page', t: 'The console loads from WX-84', d: 'The agent’s browser fetches the console page over HTTPS.' + DEMO_TUNNEL },
-      { e: 'e-start', t: 'A hidden sign-in frame starts', d: 'The console creates a one-time handoff id and an invisible frame that prepares PKCE: a secret verifier and its fingerprint.' },
-      { e: 'e-auth', t: 'Genesys hands out a token', d: 'The agent is already signed in, so the login returns a one-time code at once, and the frame trades it for an access token. No client secret is involved. Where the browser blocks this (Safari, incognito), a popup does the same.' },
-      { e: 'e-handoff', t: 'The token goes to WX-84', d: 'The frame posts the token with the handoff id. The console’s own code never holds it.' + DEMO_TUNNEL },
-      { e: 'e-verify', t: 'WX-84 checks with Genesys', d: '<code>users/me</code> says who the agent is and which org. <code>tokens/me</code> says which app received the token. These calls go straight to Genesys Cloud.' },
+      { e: 'e-start', t: 'A hidden sign-in frame starts', d: 'The console creates a one-time handoff id and an invisible frame, but only while the panel is visible (Chrome slows down background windows).' },
+      { e: 'e-handoff', t: 'WX-84 sends the frame to Genesys', d: 'The frame opens <code>/auth/start</code>. The WX-84 server keeps a one-time <code>state</code> and redirects to Genesys’ authorize page, without PKCE parameters.' + DEMO_TUNNEL },
+      { e: 'e-auth', t: 'Genesys hands out a voucher', d: 'The agent is already signed in, so Genesys returns a one-time code at once. Where the browser withholds the login cookie (Safari, incognito, an expired login), a popup does the same, once.' },
+      { e: 'e-handoff', t: 'The voucher goes to the WX-84 server', d: 'Genesys redirects the frame to <code>/auth/callback</code> on the WX-84 server. The browser carries only the code, never a token.' + DEMO_TUNNEL },
+      { e: 'e-token', t: 'The server gets a pass and a refresh token', d: 'WX-84 trades the code at Genesys’ token endpoint with its <b>client secret</b>, and receives a 1-hour access token plus a <b>refresh token</b>. Both stay on the server, stored encrypted.' },
+      { e: 'e-verify', t: 'WX-84 checks with Genesys', d: '<code>users/me</code> says who the agent is and which org. <code>tokens/me</code> says which app received the token.' },
       { e: 'e-perm', t: 'The e-mail becomes a WX-84 user', d: 'The verified e-mail must match exactly one line in <code>users.txt</code>. Otherwise: ACCESS DENIED.' },
-      { e: 'e-page', t: 'The console collects its ticket', d: 'WX-84 parks a session ticket under the handoff id for two minutes, and the console picks it up. The Genesys token stays on the server.' + DEMO_TUNNEL },
+      { e: 'e-page', t: 'The console collects its ticket', d: 'WX-84 parks a session ticket under the handoff id for two minutes, and the console picks it up.' + DEMO_TUNNEL },
+      { e: 'e-token', t: 'Every hour: renewal without the agent', d: 'Before the access token expires, the server trades the refresh token for a new pair. No agent, no browser, no Genesys login needed, and sessions survive server restarts. This is what spares agents repeated sign-ins.' },
     ] },
     request: { name: 'Every request', steps: [
       { e: 'e-page', t: 'The console asks WX-84', d: 'Every call carries the session ticket. The console rechecks its clearance every 4 seconds.' + DEMO_TUNNEL },
       { e: 'e-perm', t: 'Permissions are read fresh', d: 'WX-84 rereads <code>users.txt</code> whenever the file changes, so a revoked station locks within seconds. Every grant and denial goes to the flight recorder.' },
-      { e: 'e-verify', t: 'Customer data with the agent’s token', d: 'Station and last name come from the conversation, read with the agent’s own Genesys token. Genesys decides whether this agent may see them.' },
+      { e: 'e-verify', t: 'Customer data with the agent’s token', d: 'Station and last name come from the conversation, read with the agent’s own Genesys token, which the server renews by itself. Genesys decides whether this agent may see them.' },
       { e: 'e-wx', t: 'Weather from Open-Meteo', d: 'WX-84 fetches all stations every 5 minutes and sends the agent only the cleared ones.' },
     ] },
     all: { name: 'All connections', steps: [] },
@@ -459,12 +465,12 @@ footer { color: var(--faint); font: 11.5px var(--mono); }
     'e-route': ['n-router', 'n-queues'], 'e-offer': ['n-queues', 'n-chat'], 'e-open': ['n-chat', 'n-widget'],
     'e-start': ['n-widget', 'n-frame'], 'e-auth': ['n-frame', 'n-login'], 'e-handoff': ['n-frame', 'tunnel', 'n-server'],
     'e-page': ['n-widget', 'tunnel', 'n-server'], 'e-verify': ['n-server', 'n-api'], 'e-perm': ['n-server', 'n-store'],
-    'e-wx': ['n-server', 'n-meteo'],
+    'e-wx': ['n-server', 'n-meteo'], 'e-token': ['n-server', 'n-login'],
   };
   const BADGES = {
     'e-loc': [[100, 274]], 'e-msg': [[228, 341]], 'e-bot': [[405, 274]], 'e-route': [[405, 374]],
     'e-offer': [[615, 441]], 'e-open': [[730, 324]], 'e-start': [[730, 172]], 'e-auth': [[615, 139]],
-    'e-handoff': [[858, 104]], 'e-page': [[858, 242], [858, 206]], 'e-verify': [[520, 40]],
+    'e-handoff': [[858, 104], [858, 140]], 'e-token': [[900, 48], [960, 48]], 'e-page': [[858, 242], [858, 206]], 'e-verify': [[520, 40]],
     'e-perm': [[1026, 278]], 'e-wx': [[1164, 330]],
   };
   const SVGNS = 'http://www.w3.org/2000/svg';

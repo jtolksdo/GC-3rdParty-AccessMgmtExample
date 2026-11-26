@@ -1,6 +1,6 @@
 # GC-3rdParty-AccessMgmtExample (WX-84)
 
-Public demo for Genesys Cloud partners: a third-party tool with its own access management (plain-text permission file), embedded in the Genesys Cloud agent desktop as an Interaction Widget. Agent identity comes from Genesys Cloud (OAuth PKCE popup, verified server-side). Customer page starts Web Messaging with the custom attribute `location` (context, not routing); an Architect flow asks the last name and sends every chat to one queue, `WX-84 Weather Desk`, whose members are the group `WX-84 Agents`. The console shows only the stations the agent is cleared for and hides the rest.
+Public demo for Genesys Cloud partners: a third-party tool with its own access management (plain-text permission file), embedded in the Genesys Cloud agent desktop as an Interaction Widget. Agent identity comes from Genesys Cloud (Authorization Code grant with the client secret on the server, refresh tokens, verified server-side; agents link once). Customer page starts Web Messaging with the custom attribute `location` (context, not routing); an Architect flow asks the last name and sends every chat to one queue, `WX-84 Weather Desk`, whose members are the group `WX-84 Agents`. The console shows only the stations the agent is cleared for and hides the rest.
 
 **Language:** all code, UI, comments and docs in English (public repo). Conversation with Juergen in German is fine.
 
@@ -18,7 +18,7 @@ Public demo for Genesys Cloud partners: a third-party tool with its own access m
 
 ## Local-only files (git-ignored, never commit)
 
-`data/users.txt`, `data/flight-recorder.log`, `config/config.json` (IDs only), `genesys/agents.json` (real e-mails).
+`data/users.txt`, `data/flight-recorder.log`, `data/sessions.enc` (encrypted sessions incl. refresh tokens), `config/config.json` (IDs only), `genesys/agents.json` (real e-mails).
 
 ## Conventions
 
@@ -26,6 +26,6 @@ Public demo for Genesys Cloud partners: a third-party tool with its own access m
 * Permissions are read per request (file mtime), never cached in sessions.
 * Local operator keys only for loopback requests without proxy headers (`isLocalRequest`).
 * Before each commit: `npm run scan` (secret scan, also installed as pre-commit hook).
-* A Genesys-backed WX-84 session ends one minute before its Genesys token (12 h, set on the OAuth client by the setup); the console renews it silently two minutes earlier. Test renewal with launch configuration `wx84-short-sessions` (5-minute sessions).
+* Genesys sign-in = Authorization Code grant with the client secret on the server (`server/genesys-auth.js`), **no PKCE** (Genesys then sends no refresh token). The server keeps the refresh token and renews the 1-hour access token itself; sessions are stored encrypted in `data/sessions.enc` (key derived from the client secret, keychain account `agent-client-secret`). Watch renewal with launch configuration `wx84-fast-refresh`. Partner-facing explanation: `docs/partner-sso-guide.md`; keep it current when the sign-in changes.
 * Commits use the GitHub noreply address (repo-local `user.email`), never a private address.
 * `docs/*.html` are standalone pages served by GitHub Pages (branch `main`, folder `/docs`). The same files are also published as claude.ai artifacts: for that, publish a copy without the first four lines (doctype, `<html>`, charset, viewport), which the artifact service adds itself.

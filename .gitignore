@@ -3,6 +3,8 @@ data/users.txt
 data/flight-recorder.log
 config/config.json
 genesys/agents.json
+data/sessions.enc
+data/sessions.enc.tmp
 
 # Secrets (should never live in this folder at all)
 .env

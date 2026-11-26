@@ -9,7 +9,7 @@ if [ "$mode" = "--staged" ]; then files=$(git diff --cached --name-only --diff-f
 [ -z "$files" ] && exit 0
 bad=0
 # Local runtime files: real e-mails, org ids, audit logs - never public.
-forbidden='(^|/)(\.env(\..*)?|.*\.pem|.*\.key|id_rsa.*|id_ed25519.*|.*\.har|data/users\.txt|data/flight-recorder\.log|config/config\.json|genesys/agents\.json)$'
+forbidden='(^|/)(\.env(\..*)?|.*\.pem|.*\.key|id_rsa.*|id_ed25519.*|.*\.har|data/users\.txt|data/flight-recorder\.log|data/sessions\.enc(\.tmp)?|config/config\.json|genesys/agents\.json)$'
 while IFS= read -r f; do
   [ -f "$f" ] || continue
   if [[ "$f" =~ $forbidden ]]; then echo "FORBIDDEN FILE: $f"; bad=1; continue; fi
